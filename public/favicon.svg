@@ -1,0 +1,12 @@
+<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+    <rect width="64" height="64" fill="#1F4D45"/>
+    <g transform="translate(32 32)">
+      <path d="M0 -21.76 C 13.491200000000001 -21.76 21.76 -13.491200000000001 21.76 0 C 21.76 13.491200000000001 13.491200000000001 21.76 0 21.76 C -13.491200000000001 21.76 -21.76 13.491200000000001 -21.76 0 C -21.76 -13.491200000000001 -13.491200000000001 -21.76 0 -21.76 Z"
+        fill="none" stroke="#F2F4EF" stroke-width="1.792" opacity="0.55"/>
+      <circle r="10.0096" fill="#F2F4EF"/>
+      <circle r="2.88" cx="11.3152" cy="-11.3152" fill="#A63D5C"/>
+      <text x="0" y="1.28" text-anchor="middle" dominant-baseline="middle"
+        font-family="Georgia, 'Times New Roman', serif" font-weight="700"
+        font-size="15.36" fill="#153A34">MC</text>
+    </g>
+  </svg>

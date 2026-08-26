@@ -1,0 +1,141 @@
+import { useLiveQuery } from "dexie-react-hooks";
+import { useState } from "react";
+import { PageHeader } from "../components/PageHeader";
+import { Sheet } from "../components/Sheet";
+import { ConfirmDialog } from "../components/ConfirmDialog";
+import { db, uid } from "../db/db";
+import type { Treatment } from "../db/types";
+import { formatCurrency } from "../lib/format";
+import { EditIcon, PlusIcon, TrashIcon } from "../components/icons";
+import { useToast } from "../contexts/ToastContext";
+
+function TreatmentForm({ treatment, onClose }: { treatment?: Treatment; onClose: () => void }) {
+  const { show } = useToast();
+  const [name, setName] = useState(treatment?.name ?? "");
+  const [value, setValue] = useState(treatment ? String(treatment.defaultValue) : "");
+  const [description, setDescription] = useState(treatment?.description ?? "");
+  const [saving, setSaving] = useState(false);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const numeric = parseFloat(value.replace(",", "."));
+    if (!name.trim() || Number.isNaN(numeric)) return;
+    setSaving(true);
+    try {
+      if (treatment) {
+        await db.treatments.update(treatment.id, { name: name.trim(), defaultValue: numeric, description });
+        show("Tratamento atualizado");
+      } else {
+        await db.treatments.add({
+          id: uid(),
+          name: name.trim(),
+          defaultValue: numeric,
+          description,
+          createdAt: new Date().toISOString(),
+        });
+        show("Tratamento cadastrado");
+      }
+      onClose();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Sheet title={treatment ? "Editar tratamento" : "Novo tratamento"} onClose={onClose}>
+      <form className="stack" onSubmit={submit}>
+        <div className="field">
+          <label>Nome *</label>
+          <input value={name} onChange={(e) => setName(e.target.value)} required autoFocus />
+        </div>
+        <div className="field">
+          <label>Valor padrão (R$) *</label>
+          <input
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            inputMode="decimal"
+            placeholder="0,00"
+            required
+          />
+        </div>
+        <div className="field">
+          <label>Descrição</label>
+          <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
+        </div>
+        <button className="btn btn-primary btn-block" type="submit" disabled={saving}>
+          {saving ? "Salvando..." : "Salvar tratamento"}
+        </button>
+      </form>
+    </Sheet>
+  );
+}
+
+export function Treatments() {
+  const treatments = useLiveQuery(() => db.treatments.orderBy("name").toArray(), []);
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<Treatment | undefined>();
+  const [deleting, setDeleting] = useState<Treatment | undefined>();
+  const { show } = useToast();
+
+  if (!treatments) return null;
+
+  const handleDelete = async () => {
+    if (!deleting) return;
+    await db.treatments.delete(deleting.id);
+    show("Tratamento removido");
+    setDeleting(undefined);
+  };
+
+  return (
+    <div className="stack">
+      <PageHeader title="Tratamentos" back />
+
+      {treatments.length === 0 ? (
+        <div className="empty">
+          <p>Nenhum tratamento cadastrado.</p>
+        </div>
+      ) : (
+        <div className="stack" style={{ gap: 10 }}>
+          {treatments.map((t) => (
+            <div key={t.id} className="card">
+              <div className="row-between">
+                <div>
+                  <p style={{ fontWeight: 600, fontSize: 15.5 }}>{t.name}</p>
+                  <p className="mono" style={{ color: "var(--pine)", fontWeight: 700, marginTop: 3 }}>
+                    {formatCurrency(t.defaultValue)}
+                  </p>
+                </div>
+                <div className="row">
+                  <button className="icon-btn" onClick={() => setEditing(t)}>
+                    <EditIcon />
+                  </button>
+                  <button className="icon-btn" style={{ color: "var(--red)" }} onClick={() => setDeleting(t)}>
+                    <TrashIcon />
+                  </button>
+                </div>
+              </div>
+              {t.description && <p style={{ fontSize: 13, color: "var(--ink-soft)", marginTop: 8 }}>{t.description}</p>}
+            </div>
+          ))}
+        </div>
+      )}
+
+      <button className="fab" onClick={() => setShowForm(true)} aria-label="Novo tratamento">
+        <PlusIcon />
+      </button>
+
+      {showForm && <TreatmentForm onClose={() => setShowForm(false)} />}
+      {editing && <TreatmentForm treatment={editing} onClose={() => setEditing(undefined)} />}
+      {deleting && (
+        <ConfirmDialog
+          title="Excluir tratamento"
+          message={`Remover "${deleting.name}" do catálogo? Consultas já registradas não são afetadas.`}
+          confirmLabel="Excluir"
+          danger
+          onConfirm={handleDelete}
+          onCancel={() => setDeleting(undefined)}
+        />
+      )}
+    </div>
+  );
+}
