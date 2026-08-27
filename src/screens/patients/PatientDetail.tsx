@@ -1,10 +1,10 @@
-import { useLiveQuery } from "dexie-react-hooks";
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { PageHeader } from "../../components/PageHeader";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { PatientForm } from "./PatientForm";
-import { db } from "../../db/db";
+import { cloudRepo } from "../../lib/cloudRepo";
+import { usePatients, useTreatments, useAppointments, useRevenues, useExpenses } from "../../lib/entityHooks";
 import { formatCurrency, formatDateISOToBR } from "../../lib/format";
 import { EditIcon, FileTextIcon, PhoneIcon, TrashIcon } from "../../components/icons";
 import { useToast } from "../../contexts/ToastContext";
@@ -23,24 +23,21 @@ export function PatientDetail() {
   const [editing, setEditing] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  const patient = useLiveQuery(() => (id ? db.patients.get(id) : undefined), [id]);
-  const appointments = useLiveQuery(
-    () => (id ? db.appointments.where("patientId").equals(id).toArray() : []),
-    [id]
-  );
-  const treatments = useLiveQuery(() => db.treatments.toArray(), []);
-  const revenues = useLiveQuery(
-    () => (id ? db.revenues.where("patientId").equals(id).toArray() : []),
-    [id]
-  );
-  const expenses = useLiveQuery(async () => {
-    if (!appointments) return [];
-    const ids = appointments.map((a) => a.id);
-    if (ids.length === 0) return [];
-    return db.expenses.where("appointmentId").anyOf(ids).toArray();
-  }, [appointments]);
+  const { data: allPatients, loading: lp } = usePatients();
+  const { data: allAppointments, loading: la } = useAppointments();
+  const { data: treatments, loading: lt } = useTreatments();
+  const { data: allRevenues, loading: lr } = useRevenues();
+  const { data: allExpenses, loading: le } = useExpenses();
 
-  if (!patient || !appointments || !treatments || !revenues || !expenses) return null;
+  if (lp || la || lt || lr || le || !id) return null;
+
+  const patient = allPatients.find((p) => p.id === id);
+  if (!patient) return null;
+
+  const appointments = allAppointments.filter((a) => a.patientId === id);
+  const revenues = allRevenues.filter((r) => r.patientId === id);
+  const apptIds = new Set(appointments.map((a) => a.id));
+  const expenses = allExpenses.filter((e) => apptIds.has(e.appointmentId));
 
   const treatmentById = new Map(treatments.map((t) => [t.id, t]));
   const sortedAppts = [...appointments].sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time));
@@ -52,7 +49,7 @@ export function PatientDetail() {
 
   const handleDelete = async () => {
     if (!id) return;
-    await db.patients.delete(id);
+    await cloudRepo.patients.remove(id);
     show("Paciente removido");
     navigate("/pacientes");
   };

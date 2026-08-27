@@ -1,5 +1,5 @@
 import { Sheet } from "../../components/Sheet";
-import { db } from "../../db/db";
+import { cloudRepo } from "../../lib/cloudRepo";
 import type { PaymentMethod, Revenue } from "../../db/types";
 import { PAYMENT_METHODS } from "../../db/types";
 import { formatCurrency } from "../../lib/format";
@@ -14,7 +14,7 @@ export function PaymentSheet({ revenue, onClose }: PaymentSheetProps) {
   const { show } = useToast();
 
   const choose = async (method: PaymentMethod) => {
-    await db.revenues.update(revenue.id, { status: "Pago", paymentMethod: method });
+    await cloudRepo.revenues.update(revenue.id, { status: "Pago", paymentMethod: method });
     show("Pagamento confirmado");
     onClose();
   };

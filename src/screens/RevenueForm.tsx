@@ -1,15 +1,16 @@
-import { useLiveQuery } from "dexie-react-hooks";
 import { useState } from "react";
 import { Sheet } from "../components/Sheet";
-import { db, uid } from "../db/db";
+import { uid } from "../db/db";
 import type { PaymentMethod, RevenueStatus } from "../db/types";
 import { PAYMENT_METHODS } from "../db/types";
+import { cloudRepo } from "../lib/cloudRepo";
+import { usePatients } from "../lib/entityHooks";
 import { todayISO } from "../lib/format";
 import { useToast } from "../contexts/ToastContext";
 
 export function RevenueForm({ onClose }: { onClose: () => void }) {
   const { show } = useToast();
-  const patients = useLiveQuery(() => db.patients.orderBy("name").toArray(), []);
+  const { data: patientsRaw, loading } = usePatients();
 
   const [patientId, setPatientId] = useState("");
   const [value, setValue] = useState("");
@@ -19,7 +20,8 @@ export function RevenueForm({ onClose }: { onClose: () => void }) {
   const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
 
-  if (!patients) return null;
+  if (loading) return null;
+  const patients = [...patientsRaw].sort((a, b) => a.name.localeCompare(b.name));
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,7 +29,7 @@ export function RevenueForm({ onClose }: { onClose: () => void }) {
     if (Number.isNaN(numeric) || !date) return;
     setSaving(true);
     try {
-      await db.revenues.add({
+      await cloudRepo.revenues.add({
         id: uid(),
         patientId: patientId || null,
         appointmentId: null,

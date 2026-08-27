@@ -1,18 +1,19 @@
-import { useLiveQuery } from "dexie-react-hooks";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { PageHeader } from "../../components/PageHeader";
 import { PatientForm } from "./PatientForm";
-import { db } from "../../db/db";
+import { usePatients } from "../../lib/entityHooks";
 import { PhoneIcon, PlusIcon, SearchIcon, UsersIcon } from "../../components/icons";
 import { phoneDigits } from "../../lib/phone";
 
 export function PatientsList() {
-  const patients = useLiveQuery(() => db.patients.orderBy("name").toArray(), []);
+  const { data: allPatients, loading } = usePatients();
   const [query, setQuery] = useState("");
   const [showForm, setShowForm] = useState(false);
 
-  if (!patients) return null;
+  if (loading) return null;
+
+  const patients = [...allPatients].sort((a, b) => a.name.localeCompare(b.name));
 
   const filtered = patients.filter((p) => {
     const q = query.trim().toLowerCase();

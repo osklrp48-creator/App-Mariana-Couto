@@ -1,9 +1,8 @@
-import { useLiveQuery } from "dexie-react-hooks";
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { db } from "../db/db";
 import { formatCurrency, greeting, todayISO } from "../lib/format";
 import { getPermissionState, requestNotificationPermission } from "../lib/notifications";
+import { usePatients, useTreatments, useAppointments, useRevenues } from "../lib/entityHooks";
 import { BellIcon, CalendarIcon, PlusIcon } from "../components/icons";
 import { useToast } from "../contexts/ToastContext";
 
@@ -12,15 +11,15 @@ export function Dashboard() {
   const today = todayISO();
   const monthPrefix = today.slice(0, 7);
 
-  const patients = useLiveQuery(() => db.patients.toArray(), []);
-  const treatments = useLiveQuery(() => db.treatments.toArray(), []);
-  const appointments = useLiveQuery(() => db.appointments.toArray(), []);
-  const revenues = useLiveQuery(() => db.revenues.toArray(), []);
+  const { data: patients, loading: lp } = usePatients();
+  const { data: treatments, loading: lt } = useTreatments();
+  const { data: appointments, loading: la } = useAppointments();
+  const { data: revenues, loading: lr } = useRevenues();
 
   const [permission, setPermission] = useState(getPermissionState());
   const [dismissedBanner, setDismissedBanner] = useState(false);
 
-  if (!patients || !treatments || !appointments || !revenues) return null;
+  if (lp || lt || la || lr) return null;
 
   const patientById = new Map(patients.map((p) => [p.id, p]));
   const treatmentById = new Map(treatments.map((t) => [t.id, t]));

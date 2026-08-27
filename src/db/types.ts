@@ -70,6 +70,7 @@ export interface Settings {
   autoExpenseCategory: string;
   autoExpenseDescription: string;
   notificationsEnabledAt: string | null;
+  localDataMigrated: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -82,6 +83,7 @@ export const DEFAULT_SETTINGS: Settings = {
   autoExpenseCategory: "Materiais",
   autoExpenseDescription: "Materiais de uso único",
   notificationsEnabledAt: null,
+  localDataMigrated: false,
 };
 
 export const HOURLY_SLOTS = [

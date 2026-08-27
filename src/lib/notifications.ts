@@ -1,3 +1,4 @@
+import { cloudRepo } from "./cloudRepo";
 import { checkAppointmentsAndNotify } from "./notificationCheck";
 
 let foregroundTimer: ReturnType<typeof setInterval> | null = null;
@@ -69,7 +70,10 @@ export function startForegroundLoop(): void {
     if (Notification.permission !== "granted") return;
     try {
       const registration = await navigator.serviceWorker.ready;
-      await checkAppointmentsAndNotify({ registration });
+      await checkAppointmentsAndNotify({
+        registration,
+        pushToCloud: (id, patch) => cloudRepo.appointments.update(id, patch),
+      });
     } catch (err) {
       console.error("Falha ao checar lembretes", err);
     }

@@ -2,6 +2,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { useState } from "react";
 import { PageHeader } from "../components/PageHeader";
 import { db, ensureSettings } from "../db/db";
+import { usePatients, useRevenues, useExpenses } from "../lib/entityHooks";
 import { formatCurrency, formatDateISOToBR, currentMonthISO, currentYear, todayISO } from "../lib/format";
 import { matchesPeriod, type PeriodType } from "../lib/period";
 import { RevenueForm } from "./RevenueForm";
@@ -94,11 +95,11 @@ export function Financeiro() {
   const [periodValue, setPeriodValue] = useState(currentMonthISO());
   const [showRevenueForm, setShowRevenueForm] = useState(false);
 
-  const revenues = useLiveQuery(() => db.revenues.toArray(), []);
-  const expenses = useLiveQuery(() => db.expenses.toArray(), []);
-  const patients = useLiveQuery(() => db.patients.toArray(), []);
+  const { data: revenues, loading: lr } = useRevenues();
+  const { data: expenses, loading: le } = useExpenses();
+  const { data: patients, loading: lp } = usePatients();
 
-  if (!revenues || !expenses || !patients) return null;
+  if (lr || le || lp) return null;
 
   const patientById = new Map(patients.map((p) => [p.id, p]));
 
