@@ -1,7 +1,6 @@
-import { useLiveQuery } from "dexie-react-hooks";
 import { useState } from "react";
 import { PageHeader } from "../components/PageHeader";
-import { db } from "../db/db";
+import { usePatients, useRevenues, useExpenses } from "../lib/entityHooks";
 import { formatCurrency, formatDateISOToBR, currentMonthISO, monthLabel } from "../lib/format";
 import { buildMonthlyReportPdf, shareOrDownloadPdf } from "../lib/pdf";
 import { ShareIcon } from "../components/icons";
@@ -12,11 +11,11 @@ export function Relatorio() {
   const [monthISO, setMonthISO] = useState(currentMonthISO());
   const [exporting, setExporting] = useState(false);
 
-  const revenues = useLiveQuery(() => db.revenues.toArray(), []);
-  const expenses = useLiveQuery(() => db.expenses.toArray(), []);
-  const patients = useLiveQuery(() => db.patients.toArray(), []);
+  const { data: revenues, loading: lr } = useRevenues();
+  const { data: expenses, loading: le } = useExpenses();
+  const { data: patients, loading: lp } = usePatients();
 
-  if (!revenues || !expenses || !patients) return null;
+  if (lr || le || lp) return null;
 
   const patientById = new Map(patients.map((p) => [p.id, p]));
   const monthRevenues = revenues.filter((r) => r.date.startsWith(monthISO));

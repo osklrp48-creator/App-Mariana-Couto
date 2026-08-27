@@ -1,10 +1,11 @@
-import { useLiveQuery } from "dexie-react-hooks";
 import { useState } from "react";
 import { PageHeader } from "../components/PageHeader";
 import { Sheet } from "../components/Sheet";
 import { ConfirmDialog } from "../components/ConfirmDialog";
-import { db, uid } from "../db/db";
+import { uid } from "../db/db";
 import type { Treatment } from "../db/types";
+import { cloudRepo } from "../lib/cloudRepo";
+import { useTreatments } from "../lib/entityHooks";
 import { formatCurrency } from "../lib/format";
 import { EditIcon, PlusIcon, TrashIcon } from "../components/icons";
 import { useToast } from "../contexts/ToastContext";
@@ -23,10 +24,10 @@ function TreatmentForm({ treatment, onClose }: { treatment?: Treatment; onClose:
     setSaving(true);
     try {
       if (treatment) {
-        await db.treatments.update(treatment.id, { name: name.trim(), defaultValue: numeric, description });
+        await cloudRepo.treatments.update(treatment.id, { name: name.trim(), defaultValue: numeric, description });
         show("Tratamento atualizado");
       } else {
-        await db.treatments.add({
+        await cloudRepo.treatments.add({
           id: uid(),
           name: name.trim(),
           defaultValue: numeric,
@@ -71,17 +72,19 @@ function TreatmentForm({ treatment, onClose }: { treatment?: Treatment; onClose:
 }
 
 export function Treatments() {
-  const treatments = useLiveQuery(() => db.treatments.orderBy("name").toArray(), []);
+  const { data: allTreatments, loading } = useTreatments();
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Treatment | undefined>();
   const [deleting, setDeleting] = useState<Treatment | undefined>();
   const { show } = useToast();
 
-  if (!treatments) return null;
+  if (loading) return null;
+
+  const treatments = [...allTreatments].sort((a, b) => a.name.localeCompare(b.name));
 
   const handleDelete = async () => {
     if (!deleting) return;
-    await db.treatments.delete(deleting.id);
+    await cloudRepo.treatments.remove(deleting.id);
     show("Tratamento removido");
     setDeleting(undefined);
   };

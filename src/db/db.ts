@@ -37,32 +37,3 @@ export async function ensureSettings(): Promise<Settings> {
   await db.settings.put(DEFAULT_SETTINGS);
   return DEFAULT_SETTINGS;
 }
-
-export async function seedTreatmentsIfEmpty(): Promise<void> {
-  const count = await db.treatments.count();
-  if (count > 0) return;
-  const now = new Date().toISOString();
-  await db.treatments.bulkPut([
-    {
-      id: uid(),
-      name: "Podologia Completa",
-      defaultValue: 120,
-      description: "Avaliação, corte, lixamento e hidratação.",
-      createdAt: now,
-    },
-    {
-      id: uid(),
-      name: "Unha Encravada",
-      defaultValue: 90,
-      description: "Tratamento e curativo de unha encravada.",
-      createdAt: now,
-    },
-    {
-      id: uid(),
-      name: "Reflexologia Podal",
-      defaultValue: 80,
-      description: "",
-      createdAt: now,
-    },
-  ]);
-}

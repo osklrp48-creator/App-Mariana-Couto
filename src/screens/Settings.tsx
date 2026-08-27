@@ -4,9 +4,11 @@ import { PageHeader } from "../components/PageHeader";
 import { Sheet } from "../components/Sheet";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { db } from "../db/db";
+import { useAuth } from "../contexts/AuthContext";
 import { hashPin, randomSalt } from "../lib/pin";
+import { wipeAllCloudAndLocalData } from "../lib/accountReset";
 import { getPermissionState, requestNotificationPermission } from "../lib/notifications";
-import { BellIcon, LockIcon, TrashIcon } from "../components/icons";
+import { BellIcon, CloudIcon, LockIcon, LogOutIcon, TrashIcon } from "../components/icons";
 import { useToast } from "../contexts/ToastContext";
 
 const WIPE_WORD = "APAGAR";
@@ -75,12 +77,15 @@ function ChangePinSheet({ onClose }: { onClose: () => void }) {
 
 export function Settings() {
   const { show } = useToast();
+  const { session, signOut } = useAuth();
   const settings = useLiveQuery(() => db.settings.get("app"), []);
   const [permission, setPermission] = useState(getPermissionState());
   const [showChangePin, setShowChangePin] = useState(false);
   const [confirmRemovePin, setConfirmRemovePin] = useState(false);
   const [confirmWipe, setConfirmWipe] = useState(false);
+  const [confirmSignOut, setConfirmSignOut] = useState(false);
   const [wipeText, setWipeText] = useState("");
+  const [wiping, setWiping] = useState(false);
 
   if (!settings) return null;
 
@@ -98,10 +103,8 @@ export function Settings() {
   };
 
   const wipeAll = async () => {
-    await db.delete();
-    localStorage.clear();
-    sessionStorage.clear();
-    window.location.reload();
+    setWiping(true);
+    await wipeAllCloudAndLocalData();
   };
 
   const permissionLabel =
@@ -163,11 +166,32 @@ export function Settings() {
       </div>
 
       <div>
-        <p className="section-title">Dados do aparelho</p>
+        <p className="section-title">Conta</p>
+        <div className="card" style={{ marginTop: 8 }}>
+          <div className="row" style={{ marginBottom: 12 }}>
+            <CloudIcon width={20} height={20} style={{ color: "var(--pine)" }} />
+            <div>
+              <p style={{ fontWeight: 600 }}>Sincronizado na nuvem</p>
+              <p style={{ fontSize: 12.5, color: "var(--ink-faint)" }}>{session?.user.email}</p>
+            </div>
+          </div>
+          <p style={{ fontSize: 12.5, color: "var(--ink-faint)", marginBottom: 12 }}>
+            Use este mesmo e-mail e senha em qualquer aparelho para ver os mesmos dados,
+            atualizados em tempo real.
+          </p>
+          <button className="btn btn-outline btn-block" onClick={() => setConfirmSignOut(true)}>
+            <LogOutIcon width={16} height={16} /> Sair da conta
+          </button>
+        </div>
+      </div>
+
+      <div>
+        <p className="section-title">Dados da conta</p>
         <div className="card" style={{ marginTop: 8 }}>
           <p style={{ fontSize: 13, color: "var(--ink-soft)" }}>
-            Todos os dados ficam somente neste aparelho. Não há backup automático — se apagar,
-            não é possível recuperar.
+            Os dados ficam salvos na nuvem, vinculados à sua conta. Apagar aqui remove tudo
+            permanentemente — pacientes, agenda e financeiro — em todos os aparelhos. Não há como
+            desfazer.
           </p>
           <button className="btn btn-danger btn-block" style={{ marginTop: 12 }} onClick={() => setConfirmWipe(true)}>
             <TrashIcon width={16} height={16} /> Apagar todos os dados
@@ -188,13 +212,25 @@ export function Settings() {
         />
       )}
 
+      {confirmSignOut && (
+        <ConfirmDialog
+          title="Sair da conta"
+          message="Você volta para a tela de entrar. Seus dados continuam salvos na nuvem — é só entrar de novo com o mesmo e-mail e senha."
+          confirmLabel="Sair"
+          danger
+          onConfirm={signOut}
+          onCancel={() => setConfirmSignOut(false)}
+        />
+      )}
+
       {confirmWipe && (
-        <div className="center-overlay" onClick={() => setConfirmWipe(false)}>
+        <div className="center-overlay" onClick={() => !wiping && setConfirmWipe(false)}>
           <div className="center-card stack" onClick={(e) => e.stopPropagation()}>
             <h3 style={{ fontSize: 18 }}>Apagar todos os dados</h3>
             <p style={{ fontSize: 13.5, color: "var(--ink-soft)" }}>
-              Isso remove permanentemente pacientes, consultas, financeiro e configurações deste
-              aparelho. Não é possível desfazer. Digite <strong>{WIPE_WORD}</strong> para confirmar.
+              Isso remove permanentemente pacientes, consultas, financeiro e configurações da sua
+              conta — em todos os aparelhos. Não é possível desfazer. Digite{" "}
+              <strong>{WIPE_WORD}</strong> para confirmar.
             </p>
             <input
               value={wipeText}
@@ -211,11 +247,11 @@ export function Settings() {
               }}
             />
             <div className="row">
-              <button className="btn btn-outline btn-block" onClick={() => setConfirmWipe(false)}>
+              <button className="btn btn-outline btn-block" disabled={wiping} onClick={() => setConfirmWipe(false)}>
                 Cancelar
               </button>
-              <button className="btn btn-danger btn-block" disabled={wipeText !== WIPE_WORD} onClick={wipeAll}>
-                Apagar tudo
+              <button className="btn btn-danger btn-block" disabled={wipeText !== WIPE_WORD || wiping} onClick={wipeAll}>
+                {wiping ? "Apagando..." : "Apagar tudo"}
               </button>
             </div>
           </div>

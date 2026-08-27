@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { db } from "../../db/db";
+import { cloudRepo } from "../../lib/cloudRepo";
 import type { Appointment, Patient, Revenue, Treatment } from "../../db/types";
 import { formatCurrency, formatDateISOToBR } from "../../lib/format";
 import { completeAppointment } from "../../lib/businessLogic";
@@ -50,13 +50,13 @@ export function AppointmentCard({
   };
 
   const handleCancel = async () => {
-    await db.appointments.update(appointment.id, { status: "Cancelado", updatedAt: new Date().toISOString() });
+    await cloudRepo.appointments.update(appointment.id, { status: "Cancelado", updatedAt: new Date().toISOString() });
     setConfirmingCancel(false);
     show("Consulta cancelada");
   };
 
   const handleDelete = async () => {
-    await db.appointments.delete(appointment.id);
+    await cloudRepo.appointments.remove(appointment.id);
     setConfirmingDelete(false);
     show("Consulta removida");
   };
@@ -64,7 +64,7 @@ export function AppointmentCard({
   const togglePayment = async () => {
     if (!revenue) return;
     if (revenue.status === "Pago") {
-      await db.revenues.update(revenue.id, { status: "Pendente", paymentMethod: null });
+      await cloudRepo.revenues.update(revenue.id, { status: "Pendente", paymentMethod: null });
       show("Pagamento revertido para pendente");
     } else {
       setShowPaymentSheet(true);

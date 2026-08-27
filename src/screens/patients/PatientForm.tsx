@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Sheet } from "../../components/Sheet";
-import { db, uid } from "../../db/db";
+import { uid } from "../../db/db";
 import type { Patient } from "../../db/types";
+import { cloudRepo } from "../../lib/cloudRepo";
 import { maskPhone } from "../../lib/phone";
 import { useToast } from "../../contexts/ToastContext";
 
@@ -25,7 +26,7 @@ export function PatientForm({ patient, onClose, onSaved }: PatientFormProps) {
     setSaving(true);
     try {
       if (patient) {
-        await db.patients.update(patient.id, { name: name.trim(), phone, address, notes });
+        await cloudRepo.patients.update(patient.id, { name: name.trim(), phone, address, notes });
         onSaved?.({ ...patient, name: name.trim(), phone, address, notes });
         show("Paciente atualizado");
       } else {
@@ -37,7 +38,7 @@ export function PatientForm({ patient, onClose, onSaved }: PatientFormProps) {
           notes,
           createdAt: new Date().toISOString(),
         };
-        await db.patients.add(record);
+        await cloudRepo.patients.add(record);
         onSaved?.(record);
         show("Paciente cadastrado");
       }

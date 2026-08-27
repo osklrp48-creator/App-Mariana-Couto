@@ -1,12 +1,9 @@
-import { db, uid } from "../db/db";
+import { uid } from "../db/db";
+import { cloudRepo } from "./cloudRepo";
 import type { Appointment, Settings } from "../db/types";
 
 export async function getDeslocamentoExpense(appointmentId: string) {
-  return db.expenses
-    .where("appointmentId")
-    .equals(appointmentId)
-    .filter((e) => e.category === "Deslocamento")
-    .first();
+  return cloudRepo.expenses.findByAppointment(appointmentId, "Deslocamento");
 }
 
 export async function upsertDeslocamentoExpense(params: {
@@ -17,7 +14,7 @@ export async function upsertDeslocamentoExpense(params: {
 }) {
   const existing = await getDeslocamentoExpense(params.appointmentId);
   if (existing) {
-    await db.expenses.update(existing.id, {
+    await cloudRepo.expenses.update(existing.id, {
       value: params.value,
       description: params.description,
       date: params.date,
@@ -25,7 +22,7 @@ export async function upsertDeslocamentoExpense(params: {
     return existing.id;
   }
   const id = uid();
-  await db.expenses.add({
+  await cloudRepo.expenses.add({
     id,
     appointmentId: params.appointmentId,
     date: params.date,
@@ -41,7 +38,7 @@ export async function upsertDeslocamentoExpense(params: {
 export async function maybeCreateAutoExpense(appointment: Appointment, settings: Settings) {
   if (!settings.autoExpenseEnabled) return;
   const id = uid();
-  await db.expenses.add({
+  await cloudRepo.expenses.add({
     id,
     appointmentId: appointment.id,
     date: appointment.date,
@@ -72,9 +69,9 @@ export async function completeAppointment(appointment: Appointment): Promise<{ o
   let revenueId = appointment.revenueId;
 
   if (!revenueId) {
-    const treatment = await db.treatments.get(appointment.treatmentId);
+    const treatment = await cloudRepo.treatments.get(appointment.treatmentId);
     const id = uid();
-    await db.revenues.add({
+    await cloudRepo.revenues.add({
       id,
       patientId: appointment.patientId,
       appointmentId: appointment.id,
@@ -89,7 +86,7 @@ export async function completeAppointment(appointment: Appointment): Promise<{ o
     revenueId = id;
   }
 
-  await db.appointments.update(appointment.id, {
+  await cloudRepo.appointments.update(appointment.id, {
     status: "Concluído",
     revenueId,
     updatedAt: now,
@@ -99,7 +96,7 @@ export async function completeAppointment(appointment: Appointment): Promise<{ o
 }
 
 export async function resetNotificationFlags(appointmentId: string) {
-  await db.appointments.update(appointmentId, {
+  await cloudRepo.appointments.update(appointmentId, {
     notified60: false,
     notified30: false,
   });

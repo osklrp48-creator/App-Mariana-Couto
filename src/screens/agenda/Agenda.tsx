@@ -1,9 +1,8 @@
-import { useLiveQuery } from "dexie-react-hooks";
 import { useState } from "react";
 import { PageHeader } from "../../components/PageHeader";
-import { db } from "../../db/db";
 import type { Appointment } from "../../db/types";
 import { addDaysISO, longDateLabel, todayISO, weekdayLabel } from "../../lib/format";
+import { usePatients, useTreatments, useAppointments, useRevenues, useExpenses } from "../../lib/entityHooks";
 import { AppointmentCard } from "./AppointmentCard";
 import { AppointmentForm } from "./AppointmentForm";
 import { ExpenseForm } from "./ExpenseForm";
@@ -16,14 +15,15 @@ export function Agenda() {
   const [expenseFor, setExpenseFor] = useState<Appointment | undefined>();
   const [pastOpen, setPastOpen] = useState(true);
 
-  const appointments = useLiveQuery(() => db.appointments.toArray(), []);
-  const patients = useLiveQuery(() => db.patients.toArray(), []);
-  const treatments = useLiveQuery(() => db.treatments.toArray(), []);
-  const revenues = useLiveQuery(() => db.revenues.toArray(), []);
-  const expenses = useLiveQuery(() => db.expenses.where("category").equals("Deslocamento").toArray(), []);
+  const { data: appointments, loading: la } = useAppointments();
+  const { data: patients, loading: lp } = usePatients();
+  const { data: treatments, loading: lt } = useTreatments();
+  const { data: revenues, loading: lr } = useRevenues();
+  const { data: allExpenses, loading: le } = useExpenses();
 
-  if (!appointments || !patients || !treatments || !revenues || !expenses) return null;
+  if (la || lp || lt || lr || le) return null;
 
+  const expenses = allExpenses.filter((e) => e.category === "Deslocamento");
   const patientById = new Map(patients.map((p) => [p.id, p]));
   const treatmentById = new Map(treatments.map((t) => [t.id, t]));
   const revenueByAppointment = new Map(revenues.filter((r) => r.appointmentId).map((r) => [r.appointmentId as string, r]));

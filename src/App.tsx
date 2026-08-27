@@ -1,9 +1,12 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { HashRouter, Route, Routes } from "react-router-dom";
 import { BottomNav } from "./components/BottomNav";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { LockProvider, useLock } from "./contexts/LockContext";
 import { ToastProvider } from "./contexts/ToastContext";
-import { ensureSettings, seedTreatmentsIfEmpty } from "./db/db";
+import { ensureSettings } from "./db/db";
+import { migrateLocalDataIfNeeded } from "./lib/localMigration";
+import { AuthGate } from "./screens/auth/AuthGate";
 import { PinLock } from "./screens/pin/PinLock";
 import { PinSetup } from "./screens/pin/PinSetup";
 import { Dashboard } from "./screens/Dashboard";
@@ -17,13 +20,26 @@ import { Settings } from "./screens/Settings";
 import { More } from "./screens/More";
 
 function Gate() {
+  const { session, loading: authLoading } = useAuth();
   const { onboardingDone, unlocked } = useLock();
+  const [migrating, setMigrating] = useState(true);
 
   useEffect(() => {
     ensureSettings();
-    seedTreatmentsIfEmpty();
   }, []);
 
+  useEffect(() => {
+    if (!session) {
+      setMigrating(false);
+      return;
+    }
+    setMigrating(true);
+    migrateLocalDataIfNeeded().finally(() => setMigrating(false));
+  }, [session?.user.id]);
+
+  if (authLoading) return null;
+  if (!session) return <AuthGate />;
+  if (migrating) return null;
   if (!onboardingDone) return <PinSetup />;
   if (!unlocked) return <PinLock />;
 
@@ -52,9 +68,11 @@ function Gate() {
 export default function App() {
   return (
     <ToastProvider>
-      <LockProvider>
-        <Gate />
-      </LockProvider>
+      <AuthProvider>
+        <LockProvider>
+          <Gate />
+        </LockProvider>
+      </AuthProvider>
     </ToastProvider>
   );
 }

@@ -166,4 +166,18 @@ export const ShareIcon = (p: SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
+export const LogOutIcon = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}>
+    <path d="M9 20H5.5A1.5 1.5 0 014 18.5v-13A1.5 1.5 0 015.5 4H9" />
+    <path d="M16 16l4-4-4-4M20 12H9" />
+  </svg>
+);
+
+export const CloudIcon = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}>
+    <path d="M7 18a4.5 4.5 0 01-.5-8.97A5.5 5.5 0 0117 8.5a4 4 0 01-.5 7.98" />
+    <path d="M7 18h9.5" />
+  </svg>
+);
+
 export const ArrowLeftIcon = ChevronLeftIcon;

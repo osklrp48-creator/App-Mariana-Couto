@@ -8,9 +8,18 @@ const WINDOW_MS = 6 * 60 * 1000;
 
 interface NotifyTarget {
   registration: ServiceWorkerRegistration;
+  /**
+   * Appointments are mirrored locally (Dexie) for the service worker's sake,
+   * but the source of truth is the cloud. When this check runs somewhere
+   * with an authenticated Supabase session (the foreground loop), pass this
+   * so the "already notified" flag is pushed upstream — otherwise it only
+   * updates the local mirror and the next cloud sync would reset it,
+   * causing duplicate notifications across devices.
+   */
+  pushToCloud?: (appointmentId: string, patch: { notified60?: boolean; notified30?: boolean }) => Promise<void>;
 }
 
-export async function checkAppointmentsAndNotify({ registration }: NotifyTarget): Promise<number> {
+export async function checkAppointmentsAndNotify({ registration, pushToCloud }: NotifyTarget): Promise<number> {
   const now = Date.now();
   const appointments = await db.appointments.where("status").equals("Agendado").toArray();
   let shown = 0;
@@ -53,10 +62,15 @@ export async function checkAppointmentsAndNotify({ registration }: NotifyTarget)
     }
 
     if (updated) {
-      await db.appointments.update(appt.id, {
-        notified60: appt.notified60,
-        notified30: appt.notified30,
-      });
+      const patch = { notified60: appt.notified60, notified30: appt.notified30 };
+      await db.appointments.update(appt.id, patch);
+      if (pushToCloud) {
+        try {
+          await pushToCloud(appt.id, patch);
+        } catch (err) {
+          console.error("Falha ao sincronizar lembrete com a nuvem", err);
+        }
+      }
     }
   }
 

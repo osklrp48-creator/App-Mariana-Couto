@@ -1,10 +1,10 @@
-import { useLiveQuery } from "dexie-react-hooks";
 import { useState } from "react";
 import { Sheet } from "../../components/Sheet";
-import { db, uid } from "../../db/db";
-import { ensureSettings } from "../../db/db";
+import { ensureSettings, uid } from "../../db/db";
 import type { Appointment, AppointmentStatus } from "../../db/types";
 import { HOURLY_SLOTS } from "../../db/types";
+import { cloudRepo } from "../../lib/cloudRepo";
+import { usePatients, useTreatments } from "../../lib/entityHooks";
 import { todayISO } from "../../lib/format";
 import { maybeCreateAutoExpense, resetNotificationFlags } from "../../lib/businessLogic";
 import { useToast } from "../../contexts/ToastContext";
@@ -17,8 +17,8 @@ interface AppointmentFormProps {
 
 export function AppointmentForm({ appointment, defaultDate, onClose }: AppointmentFormProps) {
   const { show } = useToast();
-  const patients = useLiveQuery(() => db.patients.orderBy("name").toArray(), []);
-  const treatments = useLiveQuery(() => db.treatments.orderBy("name").toArray(), []);
+  const { data: patientsRaw, loading: lp } = usePatients();
+  const { data: treatmentsRaw, loading: lt } = useTreatments();
 
   const [patientId, setPatientId] = useState(appointment?.patientId ?? "");
   const [date, setDate] = useState(appointment?.date ?? defaultDate ?? todayISO());
@@ -28,7 +28,10 @@ export function AppointmentForm({ appointment, defaultDate, onClose }: Appointme
   const [notes, setNotes] = useState(appointment?.notes ?? "");
   const [saving, setSaving] = useState(false);
 
-  if (!patients || !treatments) return null;
+  if (lp || lt) return null;
+
+  const patients = [...patientsRaw].sort((a, b) => a.name.localeCompare(b.name));
+  const treatments = [...treatmentsRaw].sort((a, b) => a.name.localeCompare(b.name));
 
   const timeOptions =
     appointment && !HOURLY_SLOTS.includes(appointment.time)
@@ -43,7 +46,7 @@ export function AppointmentForm({ appointment, defaultDate, onClose }: Appointme
       const now = new Date().toISOString();
       if (appointment) {
         const timeChanged = appointment.date !== date || appointment.time !== time;
-        await db.appointments.update(appointment.id, {
+        await cloudRepo.appointments.update(appointment.id, {
           patientId,
           treatmentId,
           date,
@@ -69,7 +72,7 @@ export function AppointmentForm({ appointment, defaultDate, onClose }: Appointme
           notified60: false,
           notified30: false,
         };
-        await db.appointments.add(record);
+        await cloudRepo.appointments.add(record);
         const settings = await ensureSettings();
         await maybeCreateAutoExpense(record, settings);
         show("Consulta agendada");
