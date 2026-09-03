@@ -6,35 +6,6 @@ export async function getDeslocamentoExpense(appointmentId: string) {
   return cloudRepo.expenses.findByAppointment(appointmentId, "Deslocamento");
 }
 
-export async function upsertDeslocamentoExpense(params: {
-  appointmentId: string;
-  date: string;
-  value: number;
-  description: string;
-}) {
-  const existing = await getDeslocamentoExpense(params.appointmentId);
-  if (existing) {
-    await cloudRepo.expenses.update(existing.id, {
-      value: params.value,
-      description: params.description,
-      date: params.date,
-    });
-    return existing.id;
-  }
-  const id = uid();
-  await cloudRepo.expenses.add({
-    id,
-    appointmentId: params.appointmentId,
-    date: params.date,
-    value: params.value,
-    category: "Deslocamento",
-    description: params.description,
-    auto: false,
-    createdAt: new Date().toISOString(),
-  });
-  return id;
-}
-
 export async function maybeCreateAutoExpense(appointment: Appointment, settings: Settings) {
   if (!settings.autoExpenseEnabled) return;
   const id = uid();
