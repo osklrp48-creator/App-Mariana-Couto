@@ -180,4 +180,11 @@ export const CloudIcon = (p: SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
+export const TagIcon = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}>
+    <path d="M11.5 3.5H6a1.5 1.5 0 00-1.5 1.5v5.5a1.5 1.5 0 00.44 1.06l7 7a1.5 1.5 0 002.12 0l5.5-5.5a1.5 1.5 0 000-2.12l-7-7a1.5 1.5 0 00-1.06-.44z" />
+    <circle cx="8.2" cy="8.2" r="1.3" fill="currentColor" stroke="none" />
+  </svg>
+);
+
 export const ArrowLeftIcon = ChevronLeftIcon;

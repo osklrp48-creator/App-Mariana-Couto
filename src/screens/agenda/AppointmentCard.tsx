@@ -3,10 +3,11 @@ import { cloudRepo } from "../../lib/cloudRepo";
 import type { Appointment, Patient, Revenue, Treatment } from "../../db/types";
 import { formatCurrency, formatDateISOToBR } from "../../lib/format";
 import { completeAppointment } from "../../lib/businessLogic";
-import { CheckIcon, EditIcon, TrashIcon } from "../../components/icons";
+import { CheckIcon, EditIcon, TagIcon, TrashIcon } from "../../components/icons";
 import { useToast } from "../../contexts/ToastContext";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { PaymentSheet } from "./PaymentSheet";
+import { DiscountSheet } from "./DiscountSheet";
 
 const STATUS_PILL: Record<string, string> = {
   Agendado: "pill-blue",
@@ -39,6 +40,7 @@ export function AppointmentCard({
   const [confirmingCancel, setConfirmingCancel] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [showPaymentSheet, setShowPaymentSheet] = useState(false);
+  const [showDiscountSheet, setShowDiscountSheet] = useState(false);
 
   const handleComplete = async () => {
     const result = await completeAppointment(appointment);
@@ -86,6 +88,11 @@ export function AppointmentCard({
             {treatment?.name}
             {showDate ? ` · ${formatDateISOToBR(appointment.date)}` : ""}
           </p>
+          {revenue && treatment && revenue.value < treatment.defaultValue && (
+            <span className="pill pill-wine" style={{ marginTop: 4, display: "inline-flex" }}>
+              Desconto de {formatCurrency(treatment.defaultValue - revenue.value)}
+            </span>
+          )}
           {appointment.notes && (
             <p style={{ fontSize: 12.5, color: "var(--ink-soft)", marginTop: 4, fontStyle: "italic" }}>
               {appointment.notes}
@@ -120,12 +127,19 @@ export function AppointmentCard({
           )}
 
           {appointment.status === "Concluído" && revenue && (
-            <button
-              className={`btn btn-sm ${revenue.status === "Pago" ? "btn-outline" : "btn-accent"}`}
-              onClick={togglePayment}
-            >
-              {revenue.status === "Pago" ? `✓ Pago (${revenue.paymentMethod})` : `Confirmar pagamento · ${formatCurrency(revenue.value)}`}
-            </button>
+            <>
+              <button
+                className={`btn btn-sm ${revenue.status === "Pago" ? "btn-outline" : "btn-accent"}`}
+                onClick={togglePayment}
+              >
+                {revenue.status === "Pago" ? `✓ Pago (${revenue.paymentMethod})` : `Confirmar pagamento · ${formatCurrency(revenue.value)}`}
+              </button>
+              {revenue.status === "Pendente" && (
+                <button className="btn btn-sm btn-outline" onClick={() => setShowDiscountSheet(true)}>
+                  <TagIcon width={14} height={14} /> Desconto
+                </button>
+              )}
+            </>
           )}
         </div>
       )}
@@ -151,6 +165,13 @@ export function AppointmentCard({
         />
       )}
       {showPaymentSheet && revenue && <PaymentSheet revenue={revenue} onClose={() => setShowPaymentSheet(false)} />}
+      {showDiscountSheet && revenue && (
+        <DiscountSheet
+          revenue={revenue}
+          fullValue={treatment?.defaultValue ?? revenue.value}
+          onClose={() => setShowDiscountSheet(false)}
+        />
+      )}
     </div>
   );
 }
