@@ -19,7 +19,7 @@ interface AppointmentCardProps {
   patient?: Patient;
   treatment?: Treatment;
   revenue?: Revenue;
-  hasExpense: boolean;
+  expenseCount: number;
   showDate?: boolean;
   onEdit: () => void;
   onExpense: () => void;
@@ -30,7 +30,7 @@ export function AppointmentCard({
   patient,
   treatment,
   revenue,
-  hasExpense,
+  expenseCount,
   showDate,
   onEdit,
   onExpense,
@@ -105,7 +105,7 @@ export function AppointmentCard({
       {appointment.status !== "Cancelado" && (
         <div className="row" style={{ flexWrap: "wrap", marginTop: 12, gap: 8 }}>
           <button className="btn btn-sm btn-outline" onClick={onExpense}>
-            {hasExpense ? "Editar despesa" : "+ Despesa"}
+            {expenseCount > 0 ? `Despesas (${expenseCount})` : "+ Despesa"}
           </button>
 
           {appointment.status === "Agendado" && (

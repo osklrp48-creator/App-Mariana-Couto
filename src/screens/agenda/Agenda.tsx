@@ -5,7 +5,7 @@ import { addDaysISO, longDateLabel, todayISO, weekdayLabel } from "../../lib/for
 import { usePatients, useTreatments, useAppointments, useRevenues, useExpenses } from "../../lib/entityHooks";
 import { AppointmentCard } from "./AppointmentCard";
 import { AppointmentForm } from "./AppointmentForm";
-import { ExpenseForm } from "./ExpenseForm";
+import { ExpenseListSheet } from "./ExpenseListSheet";
 import { CalendarIcon, ChevronDownIcon, PlusIcon, SearchIcon } from "../../components/icons";
 
 export function Agenda() {
@@ -23,11 +23,13 @@ export function Agenda() {
 
   if (la || lp || lt || lr || le) return null;
 
-  const expenses = allExpenses.filter((e) => e.category === "Deslocamento");
   const patientById = new Map(patients.map((p) => [p.id, p]));
   const treatmentById = new Map(treatments.map((t) => [t.id, t]));
   const revenueByAppointment = new Map(revenues.filter((r) => r.appointmentId).map((r) => [r.appointmentId as string, r]));
-  const expenseAppointmentIds = new Set(expenses.map((e) => e.appointmentId));
+  const expenseCountByAppointment = new Map<string, number>();
+  for (const e of allExpenses) {
+    expenseCountByAppointment.set(e.appointmentId, (expenseCountByAppointment.get(e.appointmentId) ?? 0) + 1);
+  }
 
   const today = todayISO();
   const tomorrow = addDaysISO(today, 1);
@@ -39,7 +41,7 @@ export function Agenda() {
       patient={patientById.get(a.patientId)}
       treatment={treatmentById.get(a.treatmentId)}
       revenue={revenueByAppointment.get(a.id)}
-      hasExpense={expenseAppointmentIds.has(a.id)}
+      expenseCount={expenseCountByAppointment.get(a.id) ?? 0}
       showDate={showDate}
       onEdit={() => setEditing(a)}
       onExpense={() => setExpenseFor(a)}
@@ -186,7 +188,7 @@ function FormsAndFab({
       </button>
       {showForm && <AppointmentForm onClose={() => setShowForm(false)} />}
       {editing && <AppointmentForm appointment={editing} onClose={() => setEditing(undefined)} />}
-      {expenseFor && <ExpenseForm appointment={expenseFor} onClose={() => setExpenseFor(undefined)} />}
+      {expenseFor && <ExpenseListSheet appointment={expenseFor} onClose={() => setExpenseFor(undefined)} />}
     </>
   );
 }
