@@ -22,7 +22,7 @@ create table if not exists public.treatments (
   id text primary key,
   user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
   name text not null,
-  default_value numeric not null default 0,
+  procedure text not null default '',
   description text not null default '',
   created_at timestamptz not null default now()
 );

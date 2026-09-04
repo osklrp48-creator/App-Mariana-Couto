@@ -26,44 +26,37 @@ export async function canCompleteAppointment(appointmentId: string): Promise<boo
   return !!expense;
 }
 
-export async function completeAppointment(appointment: Appointment): Promise<{ ok: boolean; reason?: string }> {
-  const hasExpense = await canCompleteAppointment(appointment.id);
-  if (!hasExpense) {
-    return {
-      ok: false,
-      reason:
-        "Lance a despesa de deslocamento deste atendimento antes de concluir (botão “+ Despesa” na consulta).",
-    };
-  }
+export const CANNOT_COMPLETE_REASON =
+  "Lance a despesa de deslocamento deste atendimento antes de concluir (botão “+ Despesa” na consulta).";
 
+/**
+ * Cria a receita do atendimento com o valor informado manualmente na hora da
+ * conclusão (não existe mais valor fixo do tratamento) e marca a consulta
+ * como concluída. Assume que canCompleteAppointment já foi checado antes.
+ */
+export async function finalizeAppointment(appointment: Appointment, value: number): Promise<void> {
   const now = new Date().toISOString();
-  let revenueId = appointment.revenueId;
+  const treatment = await cloudRepo.treatments.get(appointment.treatmentId);
+  const id = uid();
 
-  if (!revenueId) {
-    const treatment = await cloudRepo.treatments.get(appointment.treatmentId);
-    const id = uid();
-    await cloudRepo.revenues.add({
-      id,
-      patientId: appointment.patientId,
-      appointmentId: appointment.id,
-      treatmentId: appointment.treatmentId,
-      value: treatment?.defaultValue ?? 0,
-      date: appointment.date,
-      paymentMethod: null,
-      status: "Pendente",
-      description: treatment?.name ?? "Atendimento",
-      createdAt: now,
-    });
-    revenueId = id;
-  }
+  await cloudRepo.revenues.add({
+    id,
+    patientId: appointment.patientId,
+    appointmentId: appointment.id,
+    treatmentId: appointment.treatmentId,
+    value,
+    date: appointment.date,
+    paymentMethod: null,
+    status: "Pendente",
+    description: treatment?.name ?? "Atendimento",
+    createdAt: now,
+  });
 
   await cloudRepo.appointments.update(appointment.id, {
     status: "Concluído",
-    revenueId,
+    revenueId: id,
     updatedAt: now,
   });
-
-  return { ok: true };
 }
 
 export async function resetNotificationFlags(appointmentId: string) {

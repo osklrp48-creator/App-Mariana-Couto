@@ -6,31 +6,33 @@ import { uid } from "../db/db";
 import type { Treatment } from "../db/types";
 import { cloudRepo } from "../lib/cloudRepo";
 import { useTreatments } from "../lib/entityHooks";
-import { formatCurrency } from "../lib/format";
 import { EditIcon, PlusIcon, TrashIcon } from "../components/icons";
 import { useToast } from "../contexts/ToastContext";
 
 function TreatmentForm({ treatment, onClose }: { treatment?: Treatment; onClose: () => void }) {
   const { show } = useToast();
   const [name, setName] = useState(treatment?.name ?? "");
-  const [value, setValue] = useState(treatment ? String(treatment.defaultValue) : "");
+  const [procedure, setProcedure] = useState(treatment?.procedure ?? "");
   const [description, setDescription] = useState(treatment?.description ?? "");
   const [saving, setSaving] = useState(false);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const numeric = parseFloat(value.replace(",", "."));
-    if (!name.trim() || Number.isNaN(numeric)) return;
+    if (!name.trim() || !procedure.trim()) return;
     setSaving(true);
     try {
       if (treatment) {
-        await cloudRepo.treatments.update(treatment.id, { name: name.trim(), defaultValue: numeric, description });
+        await cloudRepo.treatments.update(treatment.id, {
+          name: name.trim(),
+          procedure: procedure.trim(),
+          description,
+        });
         show("Tratamento atualizado");
       } else {
         await cloudRepo.treatments.add({
           id: uid(),
           name: name.trim(),
-          defaultValue: numeric,
+          procedure: procedure.trim(),
           description,
           createdAt: new Date().toISOString(),
         });
@@ -50,14 +52,14 @@ function TreatmentForm({ treatment, onClose }: { treatment?: Treatment; onClose:
           <input value={name} onChange={(e) => setName(e.target.value)} required autoFocus />
         </div>
         <div className="field">
-          <label>Valor padrão (R$) *</label>
+          <label>Procedimento *</label>
           <input
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            inputMode="decimal"
-            placeholder="0,00"
+            value={procedure}
+            onChange={(e) => setProcedure(e.target.value)}
+            placeholder="Ex: Corte de unha, remoção de calo..."
             required
           />
+          <p className="hint">O valor cobrado é informado depois, ao concluir cada atendimento.</p>
         </div>
         <div className="field">
           <label>Descrição</label>
@@ -104,8 +106,8 @@ export function Treatments() {
               <div className="row-between">
                 <div>
                   <p style={{ fontWeight: 600, fontSize: 15.5 }}>{t.name}</p>
-                  <p className="mono" style={{ color: "var(--pine)", fontWeight: 700, marginTop: 3 }}>
-                    {formatCurrency(t.defaultValue)}
+                  <p style={{ color: "var(--pine)", fontWeight: 600, marginTop: 3, fontSize: 13.5 }}>
+                    {t.procedure}
                   </p>
                 </div>
                 <div className="row">

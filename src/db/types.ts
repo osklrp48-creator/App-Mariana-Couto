@@ -16,7 +16,8 @@ export interface Patient {
 export interface Treatment {
   id: string;
   name: string;
-  defaultValue: number;
+  /** Nome/tipo do procedimento. Texto livre — não carrega mais um valor fixo. */
+  procedure: string;
   description: string;
   createdAt: string;
 }
