@@ -40,29 +40,47 @@ function buildPatientProfits(
     expensesByAppointment.set(e.appointmentId, (expensesByAppointment.get(e.appointmentId) ?? 0) + e.value);
   }
 
-  const byPatient = new Map<string, PatientProfit>();
+  // Um atendimento pode ter mais de uma receita (o procedimento principal +
+  // extras), então agrupamos por consulta antes de somar — senão as
+  // despesas daquele atendimento seriam descontadas mais de uma vez.
+  const revenuesByAppointment = new Map<string, Revenue[]>();
   for (const r of periodRevenues) {
     if (!r.patientId || !r.appointmentId) continue;
-    const patient = patientById.get(r.patientId);
+    const list = revenuesByAppointment.get(r.appointmentId) ?? [];
+    list.push(r);
+    revenuesByAppointment.set(r.appointmentId, list);
+  }
+
+  const byPatient = new Map<string, PatientProfit>();
+  for (const [appointmentId, revs] of revenuesByAppointment) {
+    const patientId = revs[0].patientId;
+    if (!patientId) continue;
+    const patient = patientById.get(patientId);
     if (!patient) continue;
 
-    let entry = byPatient.get(r.patientId);
+    let entry = byPatient.get(patientId);
     if (!entry) {
-      entry = { patientId: r.patientId, name: patient.name, appointments: [], totalValue: 0, totalExpenses: 0, profit: 0 };
-      byPatient.set(r.patientId, entry);
+      entry = { patientId, name: patient.name, appointments: [], totalValue: 0, totalExpenses: 0, profit: 0 };
+      byPatient.set(patientId, entry);
     }
 
-    const expensesTotal = expensesByAppointment.get(r.appointmentId) ?? 0;
-    const profit = r.value - expensesTotal;
+    const value = revs.reduce((s, r) => s + r.value, 0);
+    const expensesTotal = expensesByAppointment.get(appointmentId) ?? 0;
+    const profit = value - expensesTotal;
+    const main = revs.find((r) => r.treatmentId) ?? revs[0];
+    const extrasCount = revs.length - 1;
+
     entry.appointments.push({
-      appointmentId: r.appointmentId,
-      date: r.date,
-      label: r.description || "Atendimento",
-      value: r.value,
+      appointmentId,
+      date: main.date,
+      label:
+        (main.description || "Atendimento") +
+        (extrasCount > 0 ? ` (+${extrasCount} extra${extrasCount === 1 ? "" : "s"})` : ""),
+      value,
       expenses: expensesTotal,
       profit,
     });
-    entry.totalValue += r.value;
+    entry.totalValue += value;
     entry.totalExpenses += expensesTotal;
     entry.profit += profit;
   }
