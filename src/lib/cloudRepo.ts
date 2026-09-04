@@ -295,6 +295,9 @@ export const cloudRepo = {
     async remove(id: string) {
       assertNoError(await supabase.from("expenses").delete().eq("id", id));
     },
+    async removeByAppointment(appointmentId: string) {
+      assertNoError(await supabase.from("expenses").delete().eq("appointment_id", appointmentId));
+    },
     async findByAppointment(appointmentId: string, category?: string): Promise<Expense | null> {
       let query = supabase.from("expenses").select("*").eq("appointment_id", appointmentId);
       if (category) query = query.eq("category", category);
@@ -334,6 +337,9 @@ export const cloudRepo = {
     },
     async remove(id: string) {
       assertNoError(await supabase.from("revenues").delete().eq("id", id));
+    },
+    async removeByAppointment(appointmentId: string) {
+      assertNoError(await supabase.from("revenues").delete().eq("appointment_id", appointmentId));
     },
   },
 };
