@@ -1,12 +1,15 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { useState } from "react";
 import { PageHeader } from "../components/PageHeader";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 import { db, ensureSettings } from "../db/db";
+import { cloudRepo } from "../lib/cloudRepo";
 import { usePatients, useRevenues, useExpenses } from "../lib/entityHooks";
+import type { Expense, Revenue } from "../db/types";
 import { formatCurrency, formatDateISOToBR, currentMonthISO, currentYear, todayISO } from "../lib/format";
 import { matchesPeriod, type PeriodType } from "../lib/period";
 import { RevenueForm } from "./RevenueForm";
-import { PlusIcon } from "../components/icons";
+import { PlusIcon, TrashIcon } from "../components/icons";
 import { useToast } from "../contexts/ToastContext";
 
 function AutoExpenseSettings() {
@@ -91,15 +94,32 @@ function AutoExpenseSettings() {
 }
 
 export function Financeiro() {
+  const { show } = useToast();
   const [periodType, setPeriodType] = useState<PeriodType>("mes");
   const [periodValue, setPeriodValue] = useState(currentMonthISO());
   const [showRevenueForm, setShowRevenueForm] = useState(false);
+  const [deletingRevenue, setDeletingRevenue] = useState<Revenue | undefined>();
+  const [deletingExpense, setDeletingExpense] = useState<Expense | undefined>();
 
   const { data: revenues, loading: lr } = useRevenues();
   const { data: expenses, loading: le } = useExpenses();
   const { data: patients, loading: lp } = usePatients();
 
   if (lr || le || lp) return null;
+
+  const confirmDeleteRevenue = async () => {
+    if (!deletingRevenue) return;
+    await cloudRepo.revenues.remove(deletingRevenue.id);
+    show("Receita removida");
+    setDeletingRevenue(undefined);
+  };
+
+  const confirmDeleteExpense = async () => {
+    if (!deletingExpense) return;
+    await cloudRepo.expenses.remove(deletingExpense.id);
+    show("Despesa removida");
+    setDeletingExpense(undefined);
+  };
 
   const patientById = new Map(patients.map((p) => [p.id, p]));
 
@@ -197,9 +217,19 @@ export function Financeiro() {
                       {formatDateISOToBR(r.date)} {r.paymentMethod ? `· ${r.paymentMethod}` : ""}
                     </p>
                   </div>
-                  <div style={{ textAlign: "right" }}>
-                    <p className="mono" style={{ fontWeight: 700 }}>{formatCurrency(r.value)}</p>
-                    <span className={`pill ${r.status === "Pago" ? "pill-green" : "pill-amber"}`}>{r.status}</span>
+                  <div className="row" style={{ gap: 8 }}>
+                    <div style={{ textAlign: "right" }}>
+                      <p className="mono" style={{ fontWeight: 700 }}>{formatCurrency(r.value)}</p>
+                      <span className={`pill ${r.status === "Pago" ? "pill-green" : "pill-amber"}`}>{r.status}</span>
+                    </div>
+                    <button
+                      className="icon-btn"
+                      style={{ color: "var(--red)" }}
+                      onClick={() => setDeletingRevenue(r)}
+                      aria-label="Excluir receita"
+                    >
+                      <TrashIcon width={17} height={17} />
+                    </button>
                   </div>
                 </div>
               ))
@@ -225,7 +255,17 @@ export function Financeiro() {
                       {e.category} · {formatDateISOToBR(e.date)}
                     </p>
                   </div>
-                  <p className="mono" style={{ fontWeight: 700 }}>{formatCurrency(e.value)}</p>
+                  <div className="row" style={{ gap: 8 }}>
+                    <p className="mono" style={{ fontWeight: 700 }}>{formatCurrency(e.value)}</p>
+                    <button
+                      className="icon-btn"
+                      style={{ color: "var(--red)" }}
+                      onClick={() => setDeletingExpense(e)}
+                      aria-label="Excluir despesa"
+                    >
+                      <TrashIcon width={17} height={17} />
+                    </button>
+                  </div>
                 </div>
               ))
           )}
@@ -233,6 +273,27 @@ export function Financeiro() {
       </div>
 
       {showRevenueForm && <RevenueForm onClose={() => setShowRevenueForm(false)} />}
+
+      {deletingRevenue && (
+        <ConfirmDialog
+          title="Excluir receita"
+          message="Deseja remover esta receita permanentemente?"
+          confirmLabel="Excluir"
+          danger
+          onConfirm={confirmDeleteRevenue}
+          onCancel={() => setDeletingRevenue(undefined)}
+        />
+      )}
+      {deletingExpense && (
+        <ConfirmDialog
+          title="Excluir despesa"
+          message="Deseja remover esta despesa permanentemente?"
+          confirmLabel="Excluir"
+          danger
+          onConfirm={confirmDeleteExpense}
+          onCancel={() => setDeletingExpense(undefined)}
+        />
+      )}
     </div>
   );
 }
