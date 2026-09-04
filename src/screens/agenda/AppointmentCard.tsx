@@ -2,12 +2,13 @@ import { useState } from "react";
 import { cloudRepo } from "../../lib/cloudRepo";
 import type { Appointment, Patient, Revenue, Treatment } from "../../db/types";
 import { formatCurrency, formatDateISOToBR } from "../../lib/format";
-import { completeAppointment } from "../../lib/businessLogic";
+import { CANNOT_COMPLETE_REASON, canCompleteAppointment } from "../../lib/businessLogic";
 import { CheckIcon, EditIcon, TagIcon, TrashIcon } from "../../components/icons";
 import { useToast } from "../../contexts/ToastContext";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { PaymentSheet } from "./PaymentSheet";
 import { DiscountSheet } from "./DiscountSheet";
+import { CompleteAppointmentSheet } from "./CompleteAppointmentSheet";
 
 const STATUS_PILL: Record<string, string> = {
   Agendado: "pill-blue",
@@ -41,14 +42,15 @@ export function AppointmentCard({
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [showPaymentSheet, setShowPaymentSheet] = useState(false);
   const [showDiscountSheet, setShowDiscountSheet] = useState(false);
+  const [showCompleteSheet, setShowCompleteSheet] = useState(false);
 
-  const handleComplete = async () => {
-    const result = await completeAppointment(appointment);
-    if (!result.ok) {
-      show(result.reason ?? "Não foi possível concluir.", "error");
+  const handleCompleteClick = async () => {
+    const ok = await canCompleteAppointment(appointment.id);
+    if (!ok) {
+      show(CANNOT_COMPLETE_REASON, "error");
       return;
     }
-    show("Atendimento concluído");
+    setShowCompleteSheet(true);
   };
 
   const handleCancel = async () => {
@@ -90,11 +92,6 @@ export function AppointmentCard({
             {treatment?.name}
             {showDate ? ` · ${formatDateISOToBR(appointment.date)}` : ""}
           </p>
-          {revenue && treatment && revenue.value < treatment.defaultValue && (
-            <span className="pill pill-wine" style={{ marginTop: 4, display: "inline-flex" }}>
-              Desconto de {formatCurrency(treatment.defaultValue - revenue.value)}
-            </span>
-          )}
           {appointment.notes && (
             <p style={{ fontSize: 12.5, color: "var(--ink-soft)", marginTop: 4, fontStyle: "italic" }}>
               {appointment.notes}
@@ -119,7 +116,7 @@ export function AppointmentCard({
 
           {appointment.status === "Agendado" && (
             <>
-              <button className="btn btn-sm btn-primary" onClick={handleComplete}>
+              <button className="btn btn-sm btn-primary" onClick={handleCompleteClick}>
                 <CheckIcon width={14} height={14} /> Concluir
               </button>
               <button className="btn btn-sm" style={{ background: "var(--pine-tint)", color: "var(--pine-dark)" }} onClick={() => setConfirmingCancel(true)}>
@@ -138,7 +135,7 @@ export function AppointmentCard({
               </button>
               {revenue.status === "Pendente" && (
                 <button className="btn btn-sm btn-outline" onClick={() => setShowDiscountSheet(true)}>
-                  <TagIcon width={14} height={14} /> Desconto
+                  <TagIcon width={14} height={14} /> Ajustar valor
                 </button>
               )}
             </>
@@ -168,10 +165,13 @@ export function AppointmentCard({
       )}
       {showPaymentSheet && revenue && <PaymentSheet revenue={revenue} onClose={() => setShowPaymentSheet(false)} />}
       {showDiscountSheet && revenue && (
-        <DiscountSheet
-          revenue={revenue}
-          fullValue={treatment?.defaultValue ?? revenue.value}
-          onClose={() => setShowDiscountSheet(false)}
+        <DiscountSheet revenue={revenue} onClose={() => setShowDiscountSheet(false)} />
+      )}
+      {showCompleteSheet && (
+        <CompleteAppointmentSheet
+          appointment={appointment}
+          treatment={treatment}
+          onClose={() => setShowCompleteSheet(false)}
         />
       )}
     </div>

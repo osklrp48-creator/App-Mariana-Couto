@@ -21,7 +21,7 @@ export interface PatientRow {
 export interface TreatmentRow {
   id: string;
   name: string;
-  default_value: number;
+  procedure: string;
   description: string;
   created_at: string;
 }
@@ -77,7 +77,7 @@ const patientFromRow = (r: PatientRow): Patient => ({
 const treatmentFromRow = (r: TreatmentRow): Treatment => ({
   id: r.id,
   name: r.name,
-  defaultValue: Number(r.default_value),
+  procedure: r.procedure,
   description: r.description,
   createdAt: r.created_at,
 });
@@ -199,7 +199,7 @@ export const cloudRepo = {
         await supabase.from("treatments").insert({
           id: t.id,
           name: t.name,
-          default_value: t.defaultValue,
+          procedure: t.procedure,
           description: t.description,
         })
       );
@@ -207,7 +207,7 @@ export const cloudRepo = {
     async update(id: string, patch: Partial<Treatment>) {
       const row: Record<string, unknown> = {};
       if (patch.name !== undefined) row.name = patch.name;
-      if (patch.defaultValue !== undefined) row.default_value = patch.defaultValue;
+      if (patch.procedure !== undefined) row.procedure = patch.procedure;
       if (patch.description !== undefined) row.description = patch.description;
       assertNoError(await supabase.from("treatments").update(row).eq("id", id));
     },
@@ -350,21 +350,21 @@ export async function seedDefaultTreatments(): Promise<void> {
     {
       id: uid(),
       name: "Podologia Completa",
-      defaultValue: 120,
-      description: "Avaliação, corte, lixamento e hidratação.",
+      procedure: "Avaliação, corte, lixamento e hidratação",
+      description: "",
       createdAt: now,
     },
     {
       id: uid(),
       name: "Unha Encravada",
-      defaultValue: 90,
-      description: "Tratamento e curativo de unha encravada.",
+      procedure: "Tratamento e curativo de unha encravada",
+      description: "",
       createdAt: now,
     },
     {
       id: uid(),
       name: "Reflexologia Podal",
-      defaultValue: 80,
+      procedure: "Reflexologia podal",
       description: "",
       createdAt: now,
     },

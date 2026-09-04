@@ -9,8 +9,70 @@ import type { Expense, Revenue } from "../db/types";
 import { formatCurrency, formatDateISOToBR, currentMonthISO, currentYear, todayISO } from "../lib/format";
 import { matchesPeriod, type PeriodType } from "../lib/period";
 import { RevenueForm } from "./RevenueForm";
-import { PlusIcon, TrashIcon } from "../components/icons";
+import { ChevronDownIcon, PlusIcon, TrashIcon } from "../components/icons";
 import { useToast } from "../contexts/ToastContext";
+
+interface PatientProfitAppointment {
+  appointmentId: string;
+  date: string;
+  label: string;
+  value: number;
+  expenses: number;
+  profit: number;
+}
+
+interface PatientProfit {
+  patientId: string;
+  name: string;
+  appointments: PatientProfitAppointment[];
+  totalValue: number;
+  totalExpenses: number;
+  profit: number;
+}
+
+function buildPatientProfits(
+  periodRevenues: Revenue[],
+  periodExpenses: Expense[],
+  patientById: Map<string, { name: string }>
+): PatientProfit[] {
+  const expensesByAppointment = new Map<string, number>();
+  for (const e of periodExpenses) {
+    expensesByAppointment.set(e.appointmentId, (expensesByAppointment.get(e.appointmentId) ?? 0) + e.value);
+  }
+
+  const byPatient = new Map<string, PatientProfit>();
+  for (const r of periodRevenues) {
+    if (!r.patientId || !r.appointmentId) continue;
+    const patient = patientById.get(r.patientId);
+    if (!patient) continue;
+
+    let entry = byPatient.get(r.patientId);
+    if (!entry) {
+      entry = { patientId: r.patientId, name: patient.name, appointments: [], totalValue: 0, totalExpenses: 0, profit: 0 };
+      byPatient.set(r.patientId, entry);
+    }
+
+    const expensesTotal = expensesByAppointment.get(r.appointmentId) ?? 0;
+    const profit = r.value - expensesTotal;
+    entry.appointments.push({
+      appointmentId: r.appointmentId,
+      date: r.date,
+      label: r.description || "Atendimento",
+      value: r.value,
+      expenses: expensesTotal,
+      profit,
+    });
+    entry.totalValue += r.value;
+    entry.totalExpenses += expensesTotal;
+    entry.profit += profit;
+  }
+
+  for (const entry of byPatient.values()) {
+    entry.appointments.sort((a, b) => b.date.localeCompare(a.date));
+  }
+
+  return [...byPatient.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
 
 function AutoExpenseSettings() {
   const { show } = useToast();
@@ -100,6 +162,7 @@ export function Financeiro() {
   const [showRevenueForm, setShowRevenueForm] = useState(false);
   const [deletingRevenue, setDeletingRevenue] = useState<Revenue | undefined>();
   const [deletingExpense, setDeletingExpense] = useState<Expense | undefined>();
+  const [expandedPatients, setExpandedPatients] = useState<Set<string>>(new Set());
 
   const { data: revenues, loading: lr } = useRevenues();
   const { data: expenses, loading: le } = useExpenses();
@@ -130,6 +193,17 @@ export function Financeiro() {
   const totalDespesas = periodExpenses.reduce((s, e) => s + e.value, 0);
   const pendente = periodRevenues.filter((r) => r.status === "Pendente").reduce((s, r) => s + r.value, 0);
   const lucro = recebido - totalDespesas;
+
+  const patientProfits = buildPatientProfits(periodRevenues, periodExpenses, patientById);
+
+  const togglePatient = (patientId: string) => {
+    setExpandedPatients((prev) => {
+      const next = new Set(prev);
+      if (next.has(patientId)) next.delete(patientId);
+      else next.add(patientId);
+      return next;
+    });
+  };
 
   const changePeriodType = (type: PeriodType) => {
     setPeriodType(type);
@@ -270,6 +344,65 @@ export function Financeiro() {
               ))
           )}
         </div>
+      </div>
+
+      <div>
+        <p className="section-title">Lucro por paciente</p>
+        {patientProfits.length === 0 ? (
+          <div className="empty">
+            <p>Nenhum atendimento concluído no período.</p>
+          </div>
+        ) : (
+          <div className="stack" style={{ gap: 10, marginTop: 8 }}>
+            {patientProfits.map((p) => {
+              const expanded = expandedPatients.has(p.patientId);
+              return (
+                <div key={p.patientId} className="card">
+                  <div
+                    className={`collapsible-header ${expanded ? "open" : ""}`}
+                    style={{ padding: 0 }}
+                    onClick={() => togglePatient(p.patientId)}
+                  >
+                    <div>
+                      <p style={{ fontWeight: 600 }}>{p.name}</p>
+                      <p style={{ fontSize: 12, color: "var(--ink-faint)" }}>
+                        {p.appointments.length} atendimento{p.appointments.length === 1 ? "" : "s"} · Recebido{" "}
+                        {formatCurrency(p.totalValue)} − Despesas {formatCurrency(p.totalExpenses)}
+                      </p>
+                    </div>
+                    <div className="row" style={{ gap: 6 }}>
+                      <span className="mono" style={{ fontWeight: 700, color: p.profit >= 0 ? "var(--green)" : "var(--red)" }}>
+                        {formatCurrency(p.profit)}
+                      </span>
+                      <ChevronDownIcon width={18} height={18} />
+                    </div>
+                  </div>
+
+                  {expanded && (
+                    <div className="stack" style={{ gap: 8, marginTop: 12 }}>
+                      {p.appointments.map((a) => (
+                        <div
+                          key={a.appointmentId}
+                          className="row-between"
+                          style={{ borderTop: "1px solid var(--line)", paddingTop: 8 }}
+                        >
+                          <div>
+                            <p style={{ fontSize: 13, fontWeight: 600 }}>{a.label}</p>
+                            <p style={{ fontSize: 12, color: "var(--ink-faint)" }}>
+                              {formatDateISOToBR(a.date)} · Recebido {formatCurrency(a.value)} − Despesas{" "}
+                              {formatCurrency(a.expenses)}
+                            </p>
+                          </div>
+                          <p className="mono" style={{ fontWeight: 700, fontSize: 13.5 }}>{formatCurrency(a.profit)}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {showRevenueForm && <RevenueForm onClose={() => setShowRevenueForm(false)} />}

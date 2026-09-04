@@ -1,17 +1,18 @@
 import { useState } from "react";
 import { Sheet } from "../../components/Sheet";
-import { cloudRepo } from "../../lib/cloudRepo";
-import type { Revenue } from "../../db/types";
+import type { Appointment, Treatment } from "../../db/types";
+import { finalizeAppointment } from "../../lib/businessLogic";
 import { useToast } from "../../contexts/ToastContext";
 
-interface DiscountSheetProps {
-  revenue: Revenue;
+interface CompleteAppointmentSheetProps {
+  appointment: Appointment;
+  treatment?: Treatment;
   onClose: () => void;
 }
 
-export function DiscountSheet({ revenue, onClose }: DiscountSheetProps) {
+export function CompleteAppointmentSheet({ appointment, treatment, onClose }: CompleteAppointmentSheetProps) {
   const { show } = useToast();
-  const [value, setValue] = useState(String(revenue.value));
+  const [value, setValue] = useState("");
   const [saving, setSaving] = useState(false);
 
   const submit = async (e: React.FormEvent) => {
@@ -20,8 +21,8 @@ export function DiscountSheet({ revenue, onClose }: DiscountSheetProps) {
     if (Number.isNaN(numeric) || numeric < 0) return;
     setSaving(true);
     try {
-      await cloudRepo.revenues.update(revenue.id, { value: numeric });
-      show("Valor atualizado");
+      await finalizeAppointment(appointment, numeric);
+      show("Atendimento concluído");
       onClose();
     } finally {
       setSaving(false);
@@ -29,22 +30,28 @@ export function DiscountSheet({ revenue, onClose }: DiscountSheetProps) {
   };
 
   return (
-    <Sheet title="Ajustar valor do atendimento" onClose={onClose}>
+    <Sheet title="Concluir atendimento" onClose={onClose}>
       <form className="stack" onSubmit={submit}>
         <div className="field">
-          <label>Valor do procedimento (R$)</label>
+          <label>Procedimento</label>
+          <input value={treatment?.procedure || treatment?.name || ""} disabled />
+        </div>
+
+        <div className="field">
+          <label>Valor do procedimento (R$) *</label>
           <input
             value={value}
             onChange={(e) => setValue(e.target.value)}
             inputMode="decimal"
             placeholder="0,00"
+            required
             autoFocus
           />
-          <p className="hint">Use para dar um desconto ou corrigir o valor lançado na conclusão.</p>
+          <p className="hint">Informe o valor real cobrado neste atendimento.</p>
         </div>
 
         <button className="btn btn-primary btn-block" type="submit" disabled={saving}>
-          {saving ? "Salvando..." : "Salvar"}
+          {saving ? "Salvando..." : "Confirmar conclusão"}
         </button>
       </form>
     </Sheet>
