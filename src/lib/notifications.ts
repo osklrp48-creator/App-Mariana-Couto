@@ -5,10 +5,33 @@ let foregroundTimer: ReturnType<typeof setInterval> | null = null;
 
 export function registerServiceWorker(): void {
   if (!("serviceWorker" in navigator)) return;
+
+  // As soon as a new service worker takes control (after skipWaiting +
+  // clientsClaim finish activating an update), reload once so the fresh
+  // app shell/JS loads automatically — the user never has to manually
+  // close and reopen the app to see a new version.
+  let reloading = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (reloading) return;
+    reloading = true;
+    window.location.reload();
+  });
+
   window.addEventListener("load", () => {
     const url = import.meta.env.DEV ? "/dev-sw.js?dev-sw" : "/sw.js";
     navigator.serviceWorker
       .register(url, { type: import.meta.env.DEV ? "module" : "classic" })
+      .then((registration) => {
+        // The browser only checks for a new sw.js on its own schedule
+        // (roughly once a day, or on navigation). Check proactively too,
+        // so an update deployed while the app is open/installed is picked
+        // up quickly instead of waiting for that schedule.
+        const checkForUpdate = () => registration.update().catch(() => {});
+        document.addEventListener("visibilitychange", () => {
+          if (document.visibilityState === "visible") checkForUpdate();
+        });
+        setInterval(checkForUpdate, 5 * 60 * 1000);
+      })
       .catch((err) => {
         console.error("Falha ao registrar service worker", err);
       });
