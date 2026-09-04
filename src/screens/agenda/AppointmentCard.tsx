@@ -58,9 +58,11 @@ export function AppointmentCard({
   };
 
   const handleDelete = async () => {
+    await cloudRepo.expenses.removeByAppointment(appointment.id);
+    await cloudRepo.revenues.removeByAppointment(appointment.id);
     await cloudRepo.appointments.remove(appointment.id);
     setConfirmingDelete(false);
-    show("Consulta removida");
+    show("Consulta, despesas e receita vinculadas removidas");
   };
 
   const togglePayment = async () => {
@@ -157,7 +159,7 @@ export function AppointmentCard({
       {confirmingDelete && (
         <ConfirmDialog
           title="Excluir consulta"
-          message="Isso remove o registro permanentemente. Despesas e receitas vinculadas continuam existindo, mas soltas."
+          message="Isso remove o registro permanentemente, junto com as despesas e a receita vinculadas a este atendimento."
           confirmLabel="Excluir"
           danger
           onConfirm={handleDelete}
