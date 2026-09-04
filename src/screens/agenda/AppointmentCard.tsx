@@ -9,6 +9,7 @@ import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { PaymentSheet } from "./PaymentSheet";
 import { DiscountSheet } from "./DiscountSheet";
 import { CompleteAppointmentSheet } from "./CompleteAppointmentSheet";
+import { ExtraListSheet } from "./ExtraListSheet";
 
 const STATUS_PILL: Record<string, string> = {
   Agendado: "pill-blue",
@@ -22,6 +23,7 @@ interface AppointmentCardProps {
   treatment?: Treatment;
   revenue?: Revenue;
   expenseCount: number;
+  extraCount: number;
   showDate?: boolean;
   onEdit: () => void;
   onExpense: () => void;
@@ -33,6 +35,7 @@ export function AppointmentCard({
   treatment,
   revenue,
   expenseCount,
+  extraCount,
   showDate,
   onEdit,
   onExpense,
@@ -43,6 +46,7 @@ export function AppointmentCard({
   const [showPaymentSheet, setShowPaymentSheet] = useState(false);
   const [showDiscountSheet, setShowDiscountSheet] = useState(false);
   const [showCompleteSheet, setShowCompleteSheet] = useState(false);
+  const [showExtraSheet, setShowExtraSheet] = useState(false);
 
   const handleCompleteClick = async () => {
     const ok = await canCompleteAppointment(appointment.id);
@@ -138,6 +142,9 @@ export function AppointmentCard({
                   <TagIcon width={14} height={14} /> Ajustar valor
                 </button>
               )}
+              <button className="btn btn-sm btn-outline" onClick={() => setShowExtraSheet(true)}>
+                {extraCount > 0 ? `Extras (${extraCount})` : "+ Extra"}
+              </button>
             </>
           )}
         </div>
@@ -174,6 +181,7 @@ export function AppointmentCard({
           onClose={() => setShowCompleteSheet(false)}
         />
       )}
+      {showExtraSheet && <ExtraListSheet appointment={appointment} onClose={() => setShowExtraSheet(false)} />}
     </div>
   );
 }

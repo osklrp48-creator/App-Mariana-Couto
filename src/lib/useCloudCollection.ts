@@ -1,5 +1,5 @@
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "./supabaseClient";
 
 interface Entity {
@@ -18,6 +18,8 @@ interface CollectionResult<T> {
   error: string | null;
 }
 
+let instanceCounter = 0;
+
 /**
  * Loads a table scoped to the signed-in user (enforced by RLS) and keeps it
  * live across devices via Supabase Realtime. Optionally mirrors the full
@@ -32,10 +34,13 @@ export function useCloudCollection<Row extends object, T extends Entity>({
   const [data, setData] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Every hook instance needs its own channel — sharing a channel name
+  // across two components subscribed to the same table (e.g. a screen and
+  // a sheet it opens on top of it) breaks both subscriptions silently.
+  const instanceId = useRef(++instanceCounter);
 
   useEffect(() => {
     let active = true;
-    let channelName = "";
 
     async function init() {
       const { data: userData } = await supabase.auth.getUser();
@@ -45,21 +50,32 @@ export function useCloudCollection<Row extends object, T extends Entity>({
         return;
       }
 
-      const { data: rows, error: fetchError } = await supabase.from(table).select("*");
+      const fetchOnce = async () => {
+        const { data: rows, error: fetchError } = await supabase.from(table).select("*");
+        if (!active) return;
+        if (fetchError) {
+          setError(fetchError.message);
+          setLoading(false);
+          return;
+        }
+        const entities = ((rows ?? []) as Row[]).map(mapRow);
+        setData(entities);
+        mirror?.(entities);
+        setLoading(false);
+      };
+
+      await fetchOnce();
       if (!active) return;
 
-      if (fetchError) {
-        setError(fetchError.message);
-        setLoading(false);
-        return;
-      }
+      // Safety net: Realtime can miss events (dropped connection, a tab
+      // that was backgrounded, etc.), so re-fetch whenever the app regains
+      // focus instead of relying on the socket alone.
+      const onVisible = () => {
+        if (document.visibilityState === "visible") fetchOnce();
+      };
+      document.addEventListener("visibilitychange", onVisible);
 
-      const entities = ((rows ?? []) as Row[]).map(mapRow);
-      setData(entities);
-      mirror?.(entities);
-      setLoading(false);
-
-      channelName = `${table}-${userId}`;
+      const channelName = `${table}-${userId}-${instanceId.current}`;
       const channel = supabase
         .channel(channelName)
         .on(
@@ -81,9 +97,15 @@ export function useCloudCollection<Row extends object, T extends Entity>({
             });
           }
         )
-        .subscribe();
+        .subscribe((status) => {
+          if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+            console.error(`[realtime] ${channelName} ${status} — refetching as fallback`);
+            fetchOnce();
+          }
+        });
 
       return () => {
+        document.removeEventListener("visibilitychange", onVisible);
         supabase.removeChannel(channel);
       };
     }

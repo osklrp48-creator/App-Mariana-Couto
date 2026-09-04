@@ -30,6 +30,14 @@ export function Agenda() {
   for (const e of allExpenses) {
     expenseCountByAppointment.set(e.appointmentId, (expenseCountByAppointment.get(e.appointmentId) ?? 0) + 1);
   }
+  const appointmentById = new Map(appointments.map((a) => [a.id, a]));
+  const extraCountByAppointment = new Map<string, number>();
+  for (const r of revenues) {
+    if (!r.appointmentId) continue;
+    const owner = appointmentById.get(r.appointmentId);
+    if (owner && r.id === owner.revenueId) continue; // procedure revenue, not an extra
+    extraCountByAppointment.set(r.appointmentId, (extraCountByAppointment.get(r.appointmentId) ?? 0) + 1);
+  }
 
   const today = todayISO();
   const tomorrow = addDaysISO(today, 1);
@@ -42,6 +50,7 @@ export function Agenda() {
       treatment={treatmentById.get(a.treatmentId)}
       revenue={revenueByAppointment.get(a.id)}
       expenseCount={expenseCountByAppointment.get(a.id) ?? 0}
+      extraCount={extraCountByAppointment.get(a.id) ?? 0}
       showDate={showDate}
       onEdit={() => setEditing(a)}
       onExpense={() => setExpenseFor(a)}
