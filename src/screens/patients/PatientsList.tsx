@@ -4,6 +4,7 @@ import { PageHeader } from "../../components/PageHeader";
 import { PatientForm } from "./PatientForm";
 import { usePatients, useAppointments, useTreatments } from "../../lib/entityHooks";
 import { formatDateISOToBR } from "../../lib/format";
+import { normalizeSearch } from "../../lib/search";
 import { PhoneIcon, PlusIcon, SearchIcon, UsersIcon } from "../../components/icons";
 import { phoneDigits } from "../../lib/phone";
 
@@ -30,9 +31,9 @@ export function PatientsList() {
   const patients = [...allPatients].sort((a, b) => a.name.localeCompare(b.name));
 
   const filtered = patients.filter((p) => {
-    const q = query.trim().toLowerCase();
+    const q = normalizeSearch(query);
     if (!q) return true;
-    return p.name.toLowerCase().includes(q) || phoneDigits(p.phone).includes(phoneDigits(query));
+    return normalizeSearch(p.name).includes(q) || phoneDigits(p.phone).includes(phoneDigits(query));
   });
 
   return (
