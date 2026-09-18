@@ -42,6 +42,7 @@ export function PatientDetail() {
   const treatmentById = new Map(treatments.map((t) => [t.id, t]));
   const sortedAppts = [...appointments].sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time));
   const completed = sortedAppts.filter((a) => a.status === "Concluído");
+  const lastVisit = completed[0];
 
   const totalPago = revenues.filter((r) => r.status === "Pago").reduce((s, r) => s + r.value, 0);
   const totalPendente = revenues.filter((r) => r.status === "Pendente").reduce((s, r) => s + r.value, 0);
@@ -79,6 +80,28 @@ export function PatientDetail() {
         {patient.notes && (
           <p style={{ fontSize: 13, color: "var(--ink-faint)", marginTop: 8, fontStyle: "italic" }}>{patient.notes}</p>
         )}
+        <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--line)" }}>
+          <p className="section-title" style={{ margin: 0 }}>
+            Último atendimento
+          </p>
+          {lastVisit ? (
+            <div className="row-between" style={{ marginTop: 4 }}>
+              <div>
+                <p style={{ fontWeight: 600, fontSize: 14 }}>{treatmentById.get(lastVisit.treatmentId)?.name}</p>
+                {treatmentById.get(lastVisit.treatmentId)?.procedure && (
+                  <p style={{ fontSize: 12.5, color: "var(--ink-soft)" }}>
+                    {treatmentById.get(lastVisit.treatmentId)?.procedure}
+                  </p>
+                )}
+              </div>
+              <span className="mono" style={{ fontSize: 12.5, color: "var(--ink-faint)", whiteSpace: "nowrap" }}>
+                {formatDateISOToBR(lastVisit.date)}
+              </span>
+            </div>
+          ) : (
+            <p style={{ fontSize: 13, color: "var(--ink-faint)", marginTop: 4 }}>Nenhum atendimento concluído ainda.</p>
+          )}
+        </div>
       </div>
 
       <div className="tabs">
@@ -101,15 +124,25 @@ export function PatientDetail() {
               <p>Nenhum atendimento concluído ainda.</p>
             </div>
           ) : (
-            completed.map((a) => (
+            completed.map((a, i) => (
               <div key={a.id} className="card">
-                <p className="row-between">
-                  <span style={{ fontWeight: 600 }}>{treatmentById.get(a.treatmentId)?.name}</span>
-                  <span className="mono" style={{ fontSize: 12.5, color: "var(--ink-faint)" }}>
+                <div className="row-between" style={{ alignItems: "flex-start" }}>
+                  <div>
+                    <div className="row" style={{ gap: 6 }}>
+                      <span style={{ fontWeight: 600 }}>{treatmentById.get(a.treatmentId)?.name}</span>
+                      {i === 0 && <span className="pill pill-green">Último</span>}
+                    </div>
+                    {treatmentById.get(a.treatmentId)?.procedure && (
+                      <p style={{ fontSize: 13, color: "var(--ink-soft)", marginTop: 2 }}>
+                        {treatmentById.get(a.treatmentId)?.procedure}
+                      </p>
+                    )}
+                  </div>
+                  <span className="mono" style={{ fontSize: 12.5, color: "var(--ink-faint)", whiteSpace: "nowrap" }}>
                     {formatDateISOToBR(a.date)}
                   </span>
-                </p>
-                {a.notes && <p style={{ fontSize: 13, color: "var(--ink-soft)", marginTop: 6 }}>{a.notes}</p>}
+                </div>
+                {a.notes && <p style={{ fontSize: 13, color: "var(--ink-soft)", marginTop: 6, fontStyle: "italic" }}>{a.notes}</p>}
               </div>
             ))
           )}
