@@ -3,6 +3,7 @@ import { PageHeader } from "../../components/PageHeader";
 import type { Appointment } from "../../db/types";
 import { addDaysISO, longDateLabel, todayISO, weekdayLabel } from "../../lib/format";
 import { usePatients, useTreatments, useAppointments, useRevenues, useExpenses } from "../../lib/entityHooks";
+import { normalizeSearch } from "../../lib/search";
 import { AppointmentCard } from "./AppointmentCard";
 import { AppointmentForm } from "./AppointmentForm";
 import { ExpenseListSheet } from "./ExpenseListSheet";
@@ -58,11 +59,11 @@ export function Agenda() {
   );
 
   if (query.trim()) {
-    const q = query.trim().toLowerCase();
+    const q = normalizeSearch(query);
     const results = appointments
       .filter((a) => {
-        const name = patientById.get(a.patientId)?.name?.toLowerCase() ?? "";
-        const treatmentName = treatmentById.get(a.treatmentId)?.name?.toLowerCase() ?? "";
+        const name = normalizeSearch(patientById.get(a.patientId)?.name ?? "");
+        const treatmentName = normalizeSearch(treatmentById.get(a.treatmentId)?.name ?? "");
         return name.includes(q) || treatmentName.includes(q);
       })
       .sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time));
