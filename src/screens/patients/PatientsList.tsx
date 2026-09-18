@@ -33,7 +33,9 @@ export function PatientsList() {
   const filtered = patients.filter((p) => {
     const q = normalizeSearch(query);
     if (!q) return true;
-    return normalizeSearch(p.name).includes(q) || phoneDigits(p.phone).includes(phoneDigits(query));
+    const qDigits = phoneDigits(query);
+    if (normalizeSearch(p.name).includes(q)) return true;
+    return qDigits.length > 0 && phoneDigits(p.phone).includes(qDigits);
   });
 
   return (
