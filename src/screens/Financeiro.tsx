@@ -4,7 +4,7 @@ import { PageHeader } from "../components/PageHeader";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { db, ensureSettings } from "../db/db";
 import { cloudRepo } from "../lib/cloudRepo";
-import { usePatients, useRevenues, useExpenses } from "../lib/entityHooks";
+import { usePatients, useRevenues, useExpenses, useAppointments } from "../lib/entityHooks";
 import type { Expense, Revenue } from "../db/types";
 import { formatCurrency, formatDateISOToBR, currentMonthISO, currentYear, todayISO } from "../lib/format";
 import { matchesPeriod, type PeriodType } from "../lib/period";
@@ -185,8 +185,9 @@ export function Financeiro() {
   const { data: revenues, loading: lr } = useRevenues();
   const { data: expenses, loading: le } = useExpenses();
   const { data: patients, loading: lp } = usePatients();
+  const { data: appointments, loading: laAppt } = useAppointments();
 
-  if (lr || le || lp) return null;
+  if (lr || le || lp || laAppt) return null;
 
   const confirmDeleteRevenue = async () => {
     if (!deletingRevenue) return;
@@ -211,6 +212,20 @@ export function Financeiro() {
   const totalDespesas = periodExpenses.reduce((s, e) => s + e.value, 0);
   const pendente = periodRevenues.filter((r) => r.status === "Pendente").reduce((s, r) => s + r.value, 0);
   const lucro = recebido - totalDespesas;
+
+  const periodAppointmentsConcluidos = appointments.filter(
+    (a) => a.status === "Concluído" && matchesPeriod(a.date, periodType, periodValue)
+  );
+  const clientesAtendidos = new Set(periodAppointmentsConcluidos.map((a) => a.patientId)).size;
+
+  // Recebido de atendimentos = procedimento principal (tem treatmentId).
+  // Recebido extra = vendas/procedimentos extras lançados durante a consulta
+  // (tem appointmentId mas sem treatmentId). Avulso = lançamento manual sem
+  // vínculo com nenhuma consulta.
+  const pagos = periodRevenues.filter((r) => r.status === "Pago");
+  const recebidoAtendimentos = pagos.filter((r) => r.treatmentId).reduce((s, r) => s + r.value, 0);
+  const recebidoExtras = pagos.filter((r) => !r.treatmentId && r.appointmentId).reduce((s, r) => s + r.value, 0);
+  const recebidoAvulso = pagos.filter((r) => !r.treatmentId && !r.appointmentId).reduce((s, r) => s + r.value, 0);
 
   const patientProfits = buildPatientProfits(periodRevenues, periodExpenses, patientById);
 
@@ -286,6 +301,36 @@ export function Financeiro() {
         <div className="kpi-card amber">
           <p className="label">Pendente</p>
           <p className="value">{formatCurrency(pendente)}</p>
+        </div>
+        <div className="kpi-card" style={{ gridColumn: "1 / -1" }}>
+          <p className="label">Clientes atendidos</p>
+          <p className="value">{clientesAtendidos}</p>
+        </div>
+      </div>
+
+      <div className="card">
+        <p className="section-title" style={{ margin: 0 }}>
+          Detalhamento do recebido
+        </p>
+        <div className="stack" style={{ gap: 8, marginTop: 10 }}>
+          <div className="row-between">
+            <p style={{ fontSize: 13.5 }}>Atendimentos</p>
+            <p className="mono" style={{ fontWeight: 700 }}>{formatCurrency(recebidoAtendimentos)}</p>
+          </div>
+          <div className="row-between">
+            <p style={{ fontSize: 13.5 }}>Extras (durante a consulta)</p>
+            <p className="mono" style={{ fontWeight: 700 }}>{formatCurrency(recebidoExtras)}</p>
+          </div>
+          {recebidoAvulso > 0 && (
+            <div className="row-between">
+              <p style={{ fontSize: 13.5 }}>Avulso (sem consulta vinculada)</p>
+              <p className="mono" style={{ fontWeight: 700 }}>{formatCurrency(recebidoAvulso)}</p>
+            </div>
+          )}
+          <div className="row-between" style={{ borderTop: "1px solid var(--line)", paddingTop: 8 }}>
+            <p style={{ fontSize: 13.5, fontWeight: 600 }}>Total recebido</p>
+            <p className="mono" style={{ fontWeight: 700 }}>{formatCurrency(recebido)}</p>
+          </div>
         </div>
       </div>
 
