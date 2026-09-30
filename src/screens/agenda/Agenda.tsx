@@ -15,6 +15,7 @@ export function Agenda() {
   const [editing, setEditing] = useState<Appointment | undefined>();
   const [expenseFor, setExpenseFor] = useState<Appointment | undefined>();
   const [pastOpen, setPastOpen] = useState(true);
+  const [pendingOpen, setPendingOpen] = useState(true);
 
   const { data: appointments, loading: la } = useAppointments();
   const { data: patients, loading: lp } = usePatients();
@@ -94,8 +95,20 @@ export function Agenda() {
     );
   }
 
-  const past = appointments.filter((a) => a.date < today).sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time));
+  const past = appointments.filter((a) => a.date < today);
+  // Consultas que já passaram mas nunca foram marcadas como concluídas ou
+  // canceladas — ficaram "abertas" e precisam de confirmação manual.
+  const pendingConfirmation = past
+    .filter((a) => a.status === "Agendado")
+    .sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time));
+  const pastResolved = past
+    .filter((a) => a.status !== "Agendado")
+    .sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time));
   const upcoming = appointments.filter((a) => a.date >= today);
+
+  const countHoje = appointments.filter((a) => a.date === today).length;
+  const countFuturo = appointments.filter((a) => a.date > today).length;
+  const countPendente = pendingConfirmation.length;
 
   const byDate = new Map<string, Appointment[]>();
   for (const a of upcoming) {
@@ -115,6 +128,25 @@ export function Agenda() {
     <div className="stack">
       <PageHeader title="Agenda" />
       <SearchBar query={query} setQuery={setQuery} />
+
+      <div className="card" style={{ padding: "6px 14px" }}>
+        <table className="stat-table">
+          <tbody>
+            <tr>
+              <td>Atendimentos hoje</td>
+              <td>{countHoje}</td>
+            </tr>
+            <tr>
+              <td>Atendimentos futuros</td>
+              <td>{countFuturo}</td>
+            </tr>
+            <tr>
+              <td>Pendentes de confirmação</td>
+              <td style={{ color: countPendente > 0 ? "var(--red)" : undefined }}>{countPendente}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
       {orderedDates.length === 0 && past.length === 0 && (
         <div className="empty">
@@ -139,17 +171,36 @@ export function Agenda() {
         );
       })}
 
-      {past.length > 0 && (
+      {pendingConfirmation.length > 0 && (
+        <div>
+          <div
+            className={`collapsible-header ${pendingOpen ? "open" : ""}`}
+            onClick={() => setPendingOpen((v) => !v)}
+          >
+            <span className="section-title" style={{ margin: 0, color: "var(--red)" }}>
+              Pendente de confirmação ({pendingConfirmation.length})
+            </span>
+            <ChevronDownIcon />
+          </div>
+          {pendingOpen && (
+            <div className="stack" style={{ gap: 10, marginTop: 8 }}>
+              {pendingConfirmation.map((a) => renderCard(a, true))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {pastResolved.length > 0 && (
         <div>
           <div className={`collapsible-header ${pastOpen ? "open" : ""}`} onClick={() => setPastOpen((v) => !v)}>
             <span className="section-title" style={{ margin: 0 }}>
-              Consultas anteriores ({past.length})
+              Consultas anteriores ({pastResolved.length})
             </span>
             <ChevronDownIcon />
           </div>
           {pastOpen && (
             <div className="stack" style={{ gap: 10, marginTop: 8 }}>
-              {past.map((a) => renderCard(a, true))}
+              {pastResolved.map((a) => renderCard(a, true))}
             </div>
           )}
         </div>
