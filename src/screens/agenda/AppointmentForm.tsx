@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Sheet } from "../../components/Sheet";
 import { ensureSettings, uid } from "../../db/db";
 import type { Appointment, AppointmentStatus } from "../../db/types";
-import { HOURLY_SLOTS } from "../../db/types";
+import { TIME_SLOTS } from "../../db/types";
 import { cloudRepo } from "../../lib/cloudRepo";
 import { usePatients, useTreatments } from "../../lib/entityHooks";
 import { todayISO } from "../../lib/format";
@@ -22,7 +22,7 @@ export function AppointmentForm({ appointment, defaultDate, onClose }: Appointme
 
   const [patientId, setPatientId] = useState(appointment?.patientId ?? "");
   const [date, setDate] = useState(appointment?.date ?? defaultDate ?? todayISO());
-  const [time, setTime] = useState(appointment?.time ?? HOURLY_SLOTS[2]);
+  const [time, setTime] = useState(appointment?.time ?? "08:00");
   const [treatmentId, setTreatmentId] = useState(appointment?.treatmentId ?? "");
   const [status, setStatus] = useState<AppointmentStatus>(appointment?.status ?? "Agendado");
   const [notes, setNotes] = useState(appointment?.notes ?? "");
@@ -34,9 +34,9 @@ export function AppointmentForm({ appointment, defaultDate, onClose }: Appointme
   const treatments = [...treatmentsRaw].sort((a, b) => a.name.localeCompare(b.name));
 
   const timeOptions =
-    appointment && !HOURLY_SLOTS.includes(appointment.time)
-      ? [appointment.time, ...HOURLY_SLOTS]
-      : HOURLY_SLOTS;
+    appointment && !TIME_SLOTS.includes(appointment.time)
+      ? [appointment.time, ...TIME_SLOTS]
+      : TIME_SLOTS;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
