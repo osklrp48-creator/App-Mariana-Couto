@@ -87,20 +87,13 @@ export const DEFAULT_SETTINGS: Settings = {
   localDataMigrated: false,
 };
 
-export const HOURLY_SLOTS = [
-  "06:00",
-  "07:00",
-  "08:00",
-  "09:00",
-  "10:00",
-  "11:00",
-  "12:00",
-  "13:00",
-  "14:00",
-  "15:00",
-  "16:00",
-  "17:00",
-];
+// Horários de atendimento disponíveis, a cada 30 minutos, do início (06:00)
+// ao fim (17:00) do expediente.
+export const TIME_SLOTS: string[] = [];
+for (let h = 6; h <= 17; h++) {
+  TIME_SLOTS.push(`${String(h).padStart(2, "0")}:00`);
+  if (h < 17) TIME_SLOTS.push(`${String(h).padStart(2, "0")}:30`);
+}
 
 export const DESLOCAMENTO_OPTIONS = ["Uber", "99 Pop"];
 
