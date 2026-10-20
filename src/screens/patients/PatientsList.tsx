@@ -15,16 +15,21 @@ export function PatientsList() {
   const [query, setQuery] = useState("");
   const [showForm, setShowForm] = useState(false);
 
-  if (lp || la || lt) return null;
+  // A lista de pacientes é o que importa primeiro — não espera consultas e
+  // tratamentos carregarem para aparecer. O "último atendimento" de cada
+  // paciente é preenchido assim que esses dados chegarem.
+  if (lp) return null;
 
   const treatmentById = new Map(treatments.map((t) => [t.id, t]));
 
   const lastVisitByPatient = new Map<string, { date: string; treatmentName?: string }>();
-  for (const a of allAppointments) {
-    if (a.status !== "Concluído") continue;
-    const current = lastVisitByPatient.get(a.patientId);
-    if (!current || a.date > current.date) {
-      lastVisitByPatient.set(a.patientId, { date: a.date, treatmentName: treatmentById.get(a.treatmentId)?.name });
+  if (!la && !lt) {
+    for (const a of allAppointments) {
+      if (a.status !== "Concluído") continue;
+      const current = lastVisitByPatient.get(a.patientId);
+      if (!current || a.date > current.date) {
+        lastVisitByPatient.set(a.patientId, { date: a.date, treatmentName: treatmentById.get(a.treatmentId)?.name });
+      }
     }
   }
 

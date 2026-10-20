@@ -1,6 +1,7 @@
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "./supabaseClient";
+import { useAuth } from "../contexts/AuthContext";
 
 interface Entity {
   id: string;
@@ -38,13 +39,17 @@ export function useCloudCollection<Row extends object, T extends Entity>({
   // across two components subscribed to the same table (e.g. a screen and
   // a sheet it opens on top of it) breaks both subscriptions silently.
   const instanceId = useRef(++instanceCounter);
+  // The session is already resolved once in AuthContext by the time any
+  // screen renders — reusing it here avoids an extra round trip per hook
+  // instance (supabase.auth.getUser() re-validates with the server instead
+  // of reading the already-known session).
+  const { session } = useAuth();
+  const userId = session?.user.id;
 
   useEffect(() => {
     let active = true;
 
     async function init() {
-      const { data: userData } = await supabase.auth.getUser();
-      const userId = userData.user?.id;
       if (!userId || !active) {
         setLoading(false);
         return;
@@ -116,7 +121,7 @@ export function useCloudCollection<Row extends object, T extends Entity>({
       active = false;
       cleanupPromise.then((cleanup) => cleanup?.());
     };
-  }, [table]);
+  }, [table, userId]);
 
   return { data, loading, error };
 }
